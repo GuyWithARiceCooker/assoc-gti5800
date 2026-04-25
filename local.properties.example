@@ -9,4 +9,5 @@ ASSOC_AI_API_KEY=
 # Opcionális — helyi Ollama / ASUS: http://LAN-IP:11434
 # ASSOC_ASUS_OLLAMA_BASE=http://192.168.0.59:11434
 # ASSOC_ASUS_OLLAMA_NATIVE=true
+# Pontos név, mint `ollama list` (különben HTTP 404 „model not found”)
 # ASSOC_ASUS_MODEL=deepseek-r1:8b

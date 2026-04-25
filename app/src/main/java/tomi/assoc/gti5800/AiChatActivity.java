@@ -298,6 +298,25 @@ public class AiChatActivity extends Activity {
     }
 
     /**
+     * Ollama: „model not found” / 404 = a gép {@code ollama list}-jében nincs ilyen mező, vagy
+     * a {@code local.properties} {@code ASSOC_ASUS_MODEL} hibás (pl. csak {@code 8b} a teljes
+     * {@code deepseek-r1:8b} helyett).
+     */
+    private String ollamaModelMissingHint(int code, String model, String urlS, String respBody) {
+        String detail = respBody != null && respBody.length() > 0 ? trunc(respBody.trim(), 450) : "";
+        String pull =
+                "A build / ASSOC_ASUS_MODEL jelenleg: \"" + model
+                        + "\". Az ASUSon:  ollama pull "
+                        + model
+                        + "  — a pontos neveket:  ollama list  (a tag is számít, pl. deepseek-r1:8b).";
+        if (code == 404) {
+            return "Ollama: modell nincs a szerveren (vagy hibás a név).\n" + pull
+                    + (detail.length() > 0 ? "\nRész: " + detail : "");
+        }
+        return "HTTP " + code + "  " + urlS + (detail.length() > 0 ? "\n" + detail : "\n") + pull;
+    }
+
+    /**
      * Ollama natív: {@code /api/chat} + nem streaming — a {@code /v1/chat/completions} sok hoszton 404
      * (más a route).
      */
@@ -342,12 +361,12 @@ public class AiChatActivity extends Activity {
                     ? c.getInputStream()
                     : c.getErrorStream();
             if (in == null) {
-                return "HTTP " + code + " (Ollama " + urlS + "). Próbáld: ollama pull " + model;
+                return ollamaModelMissingHint(code, model, urlS, "");
             }
             String resp = readAll(in);
             in.close();
             if (code < 200 || code >= 300) {
-                return "HTTP " + code + " (Ollama /api/chat): " + trunc(resp, 500);
+                return ollamaModelMissingHint(code, model, urlS, resp);
             }
             JSONObject json = new JSONObject(resp);
             if (json.has("error")) {
@@ -427,11 +446,17 @@ public class AiChatActivity extends Activity {
                     ? c.getInputStream()
                     : c.getErrorStream();
             if (in == null) {
+                if (asus && code == 404) {
+                    return ollamaModelMissingHint(code, model, urlS, "");
+                }
                 return "HTTP " + code;
             }
             String resp = readAll(in);
             in.close();
             if (code < 200 || code >= 300) {
+                if (asus && code == 404) {
+                    return ollamaModelMissingHint(code, model, urlS, resp);
+                }
                 return "HTTP " + code + ": " + trunc(resp, 500);
             }
             JSONObject json = new JSONObject(resp);

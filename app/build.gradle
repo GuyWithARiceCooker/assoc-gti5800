@@ -4,7 +4,8 @@
 // (adb device), vagy Mac→ASUS: `tools/build-on-asus.sh`. Wi-Fi ADB: telefonon vezeték nélküli hibakeresés,
 // ASUSon `adb pair` / `adb connect`, majd `PREFER_WIRELESS=1` ugyanazzal a scripttel (lásd tools/adb-install-and-start.sh feje). A távoli `docs/update.json`
 // önfrissítés késleltetett, jóváhagyós — éles/teszt; kódváltás után ezt ne várd, hanem -r install.
-// AI: local.properties (ne commitolj). ASUS/LAN: ASSOC_ASUS_OLLAMA_BASE=http://IP:11434, ASSOC_ASUS_MODEL, ASSOC_ASUS_OLLAMA_NATIVE
+// AI: local.properties (ne commitolj). ASUS: ASSOC_ASUS_OLLAMA_BASE=http://IP:11434
+// ASSOC_ASUS_MODEL = pontosan mint `ollama list` (pl. deepseek-r1:8b) — nincs letöltve → ollama pull …
 // =true → POST …/api/chat (Ollama natív, nem /v1/… — az sok gép 404). =false + ASSOC_ASUS_CHAT_COMPLETIONS_URL → OpenAI-kompatibilis /v1/chat/completions.
 // ASSOC_ASUS_API_KEY: üres = nincs Authorization.
 plugins {
@@ -38,8 +39,8 @@ android {
         // Alap: `full` flavor — távoli frissítés, min API 14. Külön: `galaxy3` (GT-I5800) min 7, nincs AndroidX/önfrissítés.
         minSdk 14
         targetSdk 34
-        versionCode 20
-        versionName "1.13.1"
+        versionCode 21
+        versionName "1.13.2"
         // galaxy3: AiChatActivity könnyebb régi telón (részben layout override + GALAXY3_LEGACY)
         buildConfigField "boolean", "GALAXY3_LEGACY", "false"
         // Távoli frissítés (csak `full` használja; `galaxy3` stub)
@@ -72,7 +73,7 @@ android {
             // Ugyanaz az AI csevegés, mint a full (ASSOC kulcs; nagyon régi OS-en a HTTPS/TLS még elhasalhat)
             buildConfigField "boolean", "AI_ENABLED", "true"
             buildConfigField "boolean", "GALAXY3_LEGACY", "true"
-            versionName "1.13.1-g3-lan"
+            versionName "1.13.2-g3"
         }
     }
     buildTypes {
