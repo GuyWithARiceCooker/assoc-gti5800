@@ -1,32 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- I5800 / Froyo: rövid layout — kevesebb nézet = gyorsabb inflate; a memória-hint a strings-ben marad, kimegy a képernyőről, ha túl sok. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="4dp">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="4dp"
+        android:paddingBottom="2dp"
         android:text="@string/ai_title"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingBottom="6dp"
-        android:text="@string/ai_memory_hint"
-        android:textColor="#a0a098"
-        android:textSize="11sp" />
 
     <RadioGroup
         android:id="@+id/ai_backend_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingBottom="4dp">
+        android:paddingBottom="2dp">
 
         <RadioButton
             android:id="@+id/ai_backend_cloud"
@@ -34,30 +27,23 @@
             android:layout_height="wrap_content"
             android:checked="true"
             android:text="@string/ai_backend_cloud"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
 
         <RadioButton
             android:id="@+id/ai_backend_asus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/ai_backend_asus"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
     </RadioGroup>
 
-    <LinearLayout
+    <Button
+        android:id="@+id/ai_clear"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingBottom="4dp">
-
-        <Button
-            android:id="@+id/ai_clear"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minHeight="36dp"
-            android:text="@string/ai_clear"
-            android:textSize="12sp" />
-    </LinearLayout>
+        android:minHeight="32dp"
+        android:text="@string/ai_clear"
+        android:textSize="11sp" />
 
     <ScrollView
         android:id="@+id/ai_scroll"
@@ -65,15 +51,16 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:fillViewport="true"
-        android:background="#1a1a24">
+        android:background="#1a1a24"
+        android:scrollbars="vertical">
 
         <TextView
             android:id="@+id/ai_log"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="6dp"
+            android:padding="4dp"
             android:textColor="#e8e0d0"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
     </ScrollView>
 
     <EditText
@@ -82,11 +69,12 @@
         android:layout_height="wrap_content"
         android:hint="@string/ai_input_hint"
         android:inputType="textCapSentences|textMultiLine"
-        android:minLines="2" />
+        android:minLines="1" />
 
     <Button
         android:id="@+id/ai_send"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minHeight="40dp"
         android:text="@string/ai_send" />
 </LinearLayout>

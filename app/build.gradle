@@ -38,8 +38,10 @@ android {
         // Alap: `full` flavor — távoli frissítés, min API 14. Külön: `galaxy3` (GT-I5800) min 7, nincs AndroidX/önfrissítés.
         minSdk 14
         targetSdk 34
-        versionCode 16
-        versionName "1.12.1-ollama-api"
+        versionCode 17
+        versionName "1.12.2"
+        // galaxy3: AiChatActivity könnyebb régi telón (részben layout override + GALAXY3_LEGACY)
+        buildConfigField "boolean", "GALAXY3_LEGACY", "false"
         // Távoli frissítés (csak `full` használja; `galaxy3` stub)
         buildConfigField "String", "UPDATE_JSON_URL",
             "\"https://raw.githubusercontent.com/GuyWithARiceCooker/assoc-gti5800/main/docs/update.json\""
@@ -69,7 +71,8 @@ android {
             targetSdk 10
             // Ugyanaz az AI csevegés, mint a full (ASSOC kulcs; nagyon régi OS-en a HTTPS/TLS még elhasalhat)
             buildConfigField "boolean", "AI_ENABLED", "true"
-            versionName "1.12.1-g3-ollama"
+            buildConfigField "boolean", "GALAXY3_LEGACY", "true"
+            versionName "1.12.2-g3-ai"
         }
     }
     buildTypes {

@@ -100,7 +100,6 @@ public class AiChatActivity extends Activity {
         final boolean hasAsus = hasAsusChatUrl();
         if (!hasAsus) {
             backendGroup.setVisibility(View.GONE);
-            appendLog(getString(R.string.ai_asus_unconfigured) + "\n\n");
         } else {
             final SharedPreferences p = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
             final boolean cloudKeyOk =
@@ -130,7 +129,22 @@ public class AiChatActivity extends Activity {
             backendGroup.setOnCheckedChangeListener(listener);
         }
 
-        appendLog("Rendszer: " + headerLineForLog(hasAsus) + "\n");
+        final Runnable firstLogs =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!hasAsus) {
+                            appendLog(getString(R.string.ai_asus_unconfigured) + "\n\n");
+                        }
+                        appendLog("Rendszer: " + headerLineForLog(hasAsus) + "\n");
+                    }
+                };
+        if (BuildConfig.GALAXY3_LEGACY) {
+            // Első képkocka: ne az onCreate főszálon sokat appendeljünk (Eclair/kevés RAM).
+            main.post(firstLogs);
+        } else {
+            firstLogs.run();
+        }
         clearBtn.setOnClickListener(
                 new View.OnClickListener() {
                     @Override

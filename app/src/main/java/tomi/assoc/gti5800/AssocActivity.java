@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.content.Intent;
 import android.view.GestureDetector;
 import android.view.KeyEvent;
@@ -20,11 +21,15 @@ import android.widget.Toast;
 /**
  * Fő Activity: teljes képernyő {@link GLSurfaceView}, OpenGL ES 1.0.
  * Cél: GT-I5800 (FIMG) — egyszerű, régi API, nincs AppCompat függőség.
+ * AI megnyitás előtt a GL render mód when-dirty: a folyamatos rajz + új activity régi chipeken fagyást okozhat.
  */
 public class AssocActivity extends Activity {
+    /** Dupla tapp: ne nyisson két AI activity-t, ne ütközzön a GL ciklus (régi, kevés RAM). */
+    private static final long AI_OPEN_DEBOUNCE_MS = 1000L;
     private GLSurfaceView glView;
     private AssocRenderer renderer;
     private GestureDetector gesture;
+    private long lastAiOpenUptimeMs;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -75,7 +80,18 @@ public class AssocActivity extends Activity {
                     @Override
                     public boolean onDoubleTap(MotionEvent e) {
                         if (BuildConfig.AI_ENABLED) {
-                            startActivity(new Intent(AssocActivity.this, AiChatActivity.class));
+                            long now = SystemClock.uptimeMillis();
+                            if (now - lastAiOpenUptimeMs < AI_OPEN_DEBOUNCE_MS) {
+                                return true;
+                            }
+                            lastAiOpenUptimeMs = now;
+                            if (glView != null) {
+                                // Átmenet a másik activityig: a folyamatos 60+ fps rajz fagyást okozhat (FIMG / kevés RAM).
+                                glView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+                            }
+                            Intent ai = new Intent(AssocActivity.this, AiChatActivity.class);
+                            ai.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                            startActivity(ai);
                         } else {
                             Toast.makeText(
                                             AssocActivity.this,
@@ -153,6 +169,8 @@ public class AssocActivity extends Activity {
         super.onResume();
         if (glView != null) {
             glView.onResume();
+            // AI-ból (vagy más onPause) visszatéréskor: folyamatos 3D ciklus
+            glView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
         }
         // Távoli update.json: ha később nagyobb latestVersionCode, felugró
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {

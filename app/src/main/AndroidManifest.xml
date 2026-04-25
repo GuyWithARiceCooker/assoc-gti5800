@@ -41,6 +41,8 @@
             android:name=".AiChatActivity"
             android:exported="false"
             android:label="@string/ai_title"
+            android:theme="@android:style/Theme.Black.NoTitleBar"
+            android:launchMode="singleTop"
             android:configChanges="orientation|keyboardHidden|screenSize|screenLayout"
             android:windowSoftInputMode="adjustResize" />
     </application>
