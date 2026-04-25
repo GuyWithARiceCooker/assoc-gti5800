@@ -6,5 +6,7 @@
     <string name="ai_send">Küldés</string>
     <string name="ai_no_key">Állítsd be: local.properties → ASSOC_AI_API_KEY=… (ne commitolj)</string>
     <string name="ai_sending">Küldés…</string>
-    <string name="ai_gesture">Dupla kopp: AI · hosszú: frissítés · egy: kis mozgatás</string>
+    <string name="ai_gesture">Egy: nudge · dupla: AI · hosszú: frissítés · Vol+: dolly</string>
+    <string name="dolly_on">Dolly zoom: be (kamera+FOV)</string>
+    <string name="dolly_off">Dolly zoom: ki (fix 3D, régi mód)</string>
 </resources>

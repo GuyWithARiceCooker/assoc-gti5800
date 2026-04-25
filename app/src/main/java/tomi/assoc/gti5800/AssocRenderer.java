@@ -16,6 +16,10 @@ import javax.microedition.khronos.opengles.GL10;
  * OpenGL ES 1.0: a „assoc” szöveg valódi 3D-s geometria — 5×7-es rácson minden sárga „pixel”
  * extrudált doboz, világítással, forgatással. Cél: FIMG / OnePlus, shader nélküli fixed pipeline;
  * a régi GL 1.x a lap-normál + egy fénynél sokszínű árnyalatot ad (nem 2D tábla a térben).
+ * <p>
+ * Dolly zoom (opt): a kamera távolsága <strong>és</strong> a {@code gluPerspective} függő látószög
+ * együtt úgy, hogy a középpont körüli jelenet becsípődési mérete közel stabil marad, miközben a
+ * 3D-s mélységi viszony (háttér) „levegődik/nyomul” — a 2D UI-réteg ettől független, fix marad.
  */
 public class AssocRenderer implements GLSurfaceView.Renderer {
     private static final float CREAM_R = 1f;
@@ -69,11 +73,29 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
             " ####",
     };
 
+    /**
+     * Kalibráció: ezeknél a (távolság, fov) pároknál a forgó „assoc” közel ugyanakkora a képen — dollyhoz
+     * a képlet: {@code tan(fov/2) = (Z_DOLLY_REF * tan(FOV_DOLLY_REF/2)) / z} (radián).
+     */
+    private static final float Z_DOLLY_REF = 3.5f;
+    private static final float FOV_DOLLY_REF_DEG = 50f;
+    /** Sin hullám közepe, amplitúd [világ-egység] — kis Vertigo, nem hányinger. */
+    private static final float DOLLY_Z_CENTER = 3.5f;
+    private static final float DOLLY_Z_AMP = 0.75f;
+    private static final float DOLLY_PERIOD_SEC = 14f;
+    private static final float FOVY_CLAMP_MIN = 24f;
+    private static final float FOVY_CLAMP_MAX = 78f;
     private int viewportW;
     private int viewportH;
     private float angleY;
     private float angleX;
-    private float zCam = 4.2f;
+    /**
+     * Dolly <strong>ki</strong> esetén: kézzel nudge-olt/állandó kamera táv (régi viselkedés: egy szám).
+     */
+    private float zCamFree = 4.2f;
+    /** Dolly fázis: érintés ezt tolja, hogy a hullám „kicsússzon”. */
+    private float dollyPhaseOffsetRad = 0f;
+    private boolean dollyZoomEnabled = true;
     private FloatBuffer vertexBuffer;
     private FloatBuffer normalBuffer;
     private int triCount;
@@ -185,7 +207,36 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
     }
 
     public void nudgeCamera() {
-        zCam = 3.2f + (float) (Math.random() * 0.9f);
+        dollyPhaseOffsetRad += 0.85f + (float) (Math.random() * 0.4f);
+        if (!dollyZoomEnabled) {
+            zCamFree = 3.2f + (float) (Math.random() * 0.9f);
+        }
+    }
+
+    /** A hangerő/teszt: dolly+FOV pár be/ki. */
+    public void setDollyZoomEnabled(boolean on) {
+        dollyZoomEnabled = on;
+    }
+
+    public boolean isDollyZoomEnabled() {
+        return dollyZoomEnabled;
+    }
+
+    private static float fovyDegreesForDolly(float zDistance) {
+        if (zDistance < 0.2f) {
+            zDistance = 0.2f;
+        }
+        double halfRefRad = Math.toRadians(FOV_DOLLY_REF_DEG) * 0.5;
+        double k = Z_DOLLY_REF * Math.tan(halfRefRad);
+        double halfFov = Math.atan(k / (double) zDistance);
+        float deg = (float) (2.0 * Math.toDegrees(halfFov));
+        if (deg < FOVY_CLAMP_MIN) {
+            return FOVY_CLAMP_MIN;
+        }
+        if (deg > FOVY_CLAMP_MAX) {
+            return FOVY_CLAMP_MAX;
+        }
+        return deg;
     }
 
     @Override
@@ -231,10 +282,21 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
         gl.glMatrixMode(GL10.GL_PROJECTION);
         gl.glLoadIdentity();
         float aspect = (float) viewportW / (float) viewportH;
-        GLU.gluPerspective(gl, 50.0f, aspect, 0.1f, 100.0f);
+        float fovyDeg;
+        float zLook;
+        if (dollyZoomEnabled) {
+            double t = System.currentTimeMillis() * 0.001;
+            double ang = 2.0 * Math.PI * t / DOLLY_PERIOD_SEC + dollyPhaseOffsetRad;
+            zLook = DOLLY_Z_CENTER + DOLLY_Z_AMP * (float) Math.sin(ang);
+            fovyDeg = fovyDegreesForDolly(zLook);
+        } else {
+            zLook = zCamFree;
+            fovyDeg = 50.0f;
+        }
+        GLU.gluPerspective(gl, fovyDeg, aspect, 0.1f, 100.0f);
         gl.glMatrixMode(GL10.GL_MODELVIEW);
         gl.glLoadIdentity();
-        GLU.gluLookAt(gl, 0, 0, zCam, 0, 0, 0, 0, 1, 0);
+        GLU.gluLookAt(gl, 0, 0, zLook, 0, 0, 0, 0, 1, 0);
         angleY += 0.85f;
         if (angleY >= 360f) {
             angleY -= 360f;

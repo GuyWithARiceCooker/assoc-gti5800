@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.content.Intent;
 import android.view.GestureDetector;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
@@ -122,6 +123,21 @@ public class AssocActivity extends Activity {
             }, 800);
         } catch (PackageManager.NameNotFoundException ignored) {
         }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && event.getRepeatCount() == 0) {
+            boolean next = !renderer.isDollyZoomEnabled();
+            renderer.setDollyZoomEnabled(next);
+            Toast.makeText(
+                            this,
+                            next ? R.string.dolly_on : R.string.dolly_off,
+                            Toast.LENGTH_SHORT)
+                    .show();
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     @Override
