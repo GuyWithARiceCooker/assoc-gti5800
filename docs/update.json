@@ -1,5 +1,5 @@
 {
-  "latestVersionCode": 7,
+  "latestVersionCode": 8,
   "latestVersionName": "1.6-3dtext",
   "apkUrl": "",
   "_comment": "Új build: latestVersionCode++ szükséges; apkUrl = GitHub Release asset HTTPS, pl. .../releases/download/v1.5/assoc-gti5800.apk. Üres apkUrl = automata felugró nincs, de hosszú érintés kézi ellenőrzés."

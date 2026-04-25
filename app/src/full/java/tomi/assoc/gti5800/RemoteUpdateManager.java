@@ -22,8 +22,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 /**
- * Távoli önfrissítés: a {@link BuildConfig#UPDATE_JSON_URL} (GitHub {@code main/docs/update.json} alapból) —
- * a JSON-t távolról cseréled, új apkUrl + latestVersionCode; kliens verzió: {@code BuildConfig#VERSION_CODE}.
+ * Távoli önfrissítés (csak {@code full} flavor): a {@link BuildConfig#UPDATE_JSON_URL} (GitHub
+ * {@code main/docs/update.json} alapból) — a JSON-t távolról cseréled, új apkUrl + latestVersionCode;
+ * kliens verzió: {@code BuildConfig#VERSION_CODE}. A {@code galaxy3} buildben a stub osztály pótolja.
  * Install: hosszú érintés a 3D nézeten, vagy automatikus felugró, ha távoli kód &gt; helyi.
  */
 public final class RemoteUpdateManager {
