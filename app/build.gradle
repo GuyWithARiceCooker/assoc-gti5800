@@ -1,5 +1,8 @@
 // modul: assoc gti5800 app — OpenGL ES 1.0
-// Build: `./gradlew :app:assembleFullDebug` (OnePlus, min 14, önfrissítés) vagy `assembleGalaxy3Debug` (GT-I5800, min 7, sideload).
+// Build: `./gradlew :app:assembleFullDebug` (OnePlus, min 14) vagy `assembleGalaxy3Debug` (GT-I5800, min 7).
+// Fejlesztési ciklus: közvetlen telepítés (nem a GitHub update.json). Pl. `./gradlew :app:installFullDebug` / `installGalaxy3Debug`
+// (adb device), vagy Mac→ASUS: `tools/build-on-asus.sh`. A távoli `docs/update.json`
+// önfrissítés késleltetett, jóváhagyós — éles/teszt; kódváltás után ezt ne várd, hanem -r install.
 // AI kulcs (ne commitolj): local.properties → ASSOC_AI_API_KEY=sk-…
 plugins {
     id 'com.android.application'
