@@ -1,0 +1,3 @@
+# Samsung USB (ADB): GT-I5800, Galaxy, …  — vendor 04e8
+# Telepítés: ugyanabban a mappában az apply-udev-samsung.sh
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", MODE="0660", GROUP="plugdev"

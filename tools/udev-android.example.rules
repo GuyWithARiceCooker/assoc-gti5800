@@ -1,0 +1,10 @@
+# Példa: ASUS Linux / USB ADB „no permissions” ellen (sudo, utána újracsatlakoztatás)
+# Másold: sudo cp udev-android.example.rules /etc/udev/rules.d/70-android.rules
+# sudo udevadm control --reload-rules && sudo udevadm trigger
+# User a plugdev csoportban: sudo usermod -aG plugdev $USER (kijelentkezés után)
+
+# Samsung (tipik GT-I5800 / régi Galaxy)
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", MODE="0666", GROUP="plugdev"
+
+# Google / sok debug mód
+SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0666", GROUP="plugdev"
