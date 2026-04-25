@@ -7,7 +7,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
-import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RadioButton;
@@ -25,7 +24,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -86,7 +84,8 @@ public class AiChatActivity extends Activity {
             finish();
             return;
         }
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        // A manifest: Theme.Black.NoTitleBar — Eclair/DONUTon a requestWindowFeature+theme összeütközhet
+        // ("Application does not have a…"), ezért nincs külön requestWindowFeature.
         setContentView(R.layout.activity_ai_chat);
         logView = findViewById(R.id.ai_log);
         logScroll = findViewById(R.id.ai_scroll);
@@ -288,7 +287,7 @@ public class AiChatActivity extends Activity {
             JSONObject options = new JSONObject();
             options.put("temperature", 0.7);
             root.put("options", options);
-            byte[] body = root.toString().getBytes(Charset.forName("UTF-8"));
+            byte[] body = utf8Bytes(root.toString());
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 c.setFixedLengthStreamingMode(body.length);
             } else {
@@ -310,8 +309,11 @@ public class AiChatActivity extends Activity {
                 return "HTTP " + code + " (Ollama /api/chat): " + trunc(resp, 500);
             }
             JSONObject json = new JSONObject(resp);
-            if (json.has("error") && !json.isNull("error")) {
-                return "Ollama: " + json.optString("error", "");
+            if (json.has("error")) {
+                Object err = json.opt("error");
+                if (err != null && err != org.json.JSONObject.NULL) {
+                    return "Ollama: " + String.valueOf(err);
+                }
             }
             JSONObject message = json.optJSONObject("message");
             if (message == null) {
@@ -370,7 +372,7 @@ public class AiChatActivity extends Activity {
             root.put("model", model);
             root.put("messages", buildMessagesJsonArray());
             root.put("temperature", 0.7);
-            byte[] body = root.toString().getBytes(Charset.forName("UTF-8"));
+            byte[] body = utf8Bytes(root.toString());
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 c.setFixedLengthStreamingMode(body.length);
             } else {
@@ -424,9 +426,21 @@ public class AiChatActivity extends Activity {
         }
     }
 
+    /**
+     * UTF-8 bájtok — {@link String#getBytes(java.nio.charset.Charset)} nincs a régi (pl. 2.1) Dalvik
+     * referenciájában mindenhol; a {@code "UTF-8"} sztringgel kompatibilis.
+     */
+    private static byte[] utf8Bytes(String s) {
+        try {
+            return s.getBytes("UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return s.getBytes();
+        }
+    }
+
     private static String readAll(InputStream in) throws Exception {
-        BufferedReader r = new BufferedReader(
-                new InputStreamReader(in, Charset.forName("UTF-8")));
+        // InputStreamReader(InputStream, Charset) → régi API-n hiányzhat; "UTF-8" sztringgel oké.
+        BufferedReader r = new BufferedReader(new InputStreamReader(in, "UTF-8"));
         StringBuilder b = new StringBuilder();
         String line;
         while ((line = r.readLine()) != null) {
