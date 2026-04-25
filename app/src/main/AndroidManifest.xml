@@ -13,9 +13,11 @@
         </intent>
     </queries>
 
+    <!-- HTTP (LAN, pl. Ollama az ASUS 192.168.0.59) — a Chat Completion kéréshez -->
     <application
         android:label="@string/app_name"
-        android:icon="@drawable/ic_assoc">
+        android:icon="@drawable/ic_assoc"
+        android:usesCleartextTraffic="true">
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="tomi.assoc.gti5800.fileprovider"

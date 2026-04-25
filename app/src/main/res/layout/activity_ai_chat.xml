@@ -13,6 +13,51 @@
         android:textSize="16sp"
         android:textStyle="bold" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="6dp"
+        android:text="@string/ai_memory_hint"
+        android:textColor="#a0a098"
+        android:textSize="11sp" />
+
+    <RadioGroup
+        android:id="@+id/ai_backend_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="4dp">
+
+        <RadioButton
+            android:id="@+id/ai_backend_cloud"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/ai_backend_cloud"
+            android:textSize="13sp" />
+
+        <RadioButton
+            android:id="@+id/ai_backend_asus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/ai_backend_asus"
+            android:textSize="13sp" />
+    </RadioGroup>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingBottom="4dp">
+
+        <Button
+            android:id="@+id/ai_clear"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/ai_clear" />
+    </LinearLayout>
+
     <ScrollView
         android:id="@+id/ai_scroll"
         android:layout_width="match_parent"

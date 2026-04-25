@@ -1,6 +1,7 @@
 package tomi.assoc.gti5800;
 
 import android.app.Activity;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -9,6 +10,8 @@ import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,21 +30,39 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * OpenAI-stílusú <strong>chat/completions</strong> kliens: {@link BuildConfig#AI_CHAT_COMPLETIONS_URL},
- * {@link BuildConfig#AI_MODEL}, Bearer {@link BuildConfig#AI_API_KEY} (a projekt
- * <code>local.properties</code>: <code>ASSOC_AI_API_KEY</code> – ne legyen verziókezelve). Ha
- * {@link BuildConfig#AI_ENABLED} hamis, a képernyő azonnal leáll. <code>full</code> és
- * <code>galaxy3</code> (Samsung I5800 / régi) egyaránt tudják, ha a buildekben be van kapcsolva; régi
- * Androidon modern HTTPS miatt a kapcsolat elhasalhat.
+ * OpenAI-stílusú <strong>chat/completions</strong> kliens, két választható végpontra:
+ * <ol>
+ *   <li><strong>Felhő</strong> — {@link BuildConfig#AI_CHAT_COMPLETIONS_URL}, modell
+ *   {@link BuildConfig#AI_MODEL}, Bearer {@link BuildConfig#AI_API_KEY} ({@code local.properties:
+ *   ASSOC_AI_API_KEY})</li>
+ *   <li><strong>ASUS / LAN</strong> (pl. Ollama) — {@link BuildConfig#AI_ASUS_CHAT_COMPLETIONS_URL},
+ *   modell {@link BuildConfig#AI_ASUS_MODEL}; kulcs {@link BuildConfig#AI_ASUS_API_KEY} (üres
+ *   = nincs {@code Authorization} fejléc; tipikus helyi szervernél). URL/kulcsok build idején
+ *   {@code local.properties}-ból (ne legyen a repóban kulcs).
+ * </ol>
+ * <p>
+ * <strong>„Memória” (előzmények):</strong> a kliens {@link #history} listában tartja a
+ * (user+assistant) üzeneteket. <strong>Modell- vagy szerverváltáskor nem törjük</strong> — a
+ * következő kérés ugyanazt a <strong>teljes</strong> <code>messages</code> tömböt kapja, csak
+ * más a cél-URL + <code>model</code> mező. (A tényleges „értelmezés” a távoli modell; ha zavaró
+ * a másik szerverről jött korábbi válasz, használd az ürítést — új beszédet kezd.)
+ * </p>
  */
 public class AiChatActivity extends Activity {
     private static final int READ_TIMEOUT_MS = 120_000;
     private static final int CONNECT_TIMEOUT_MS = 30_000;
+    private static final String PREF_NAME = "assoc_ai_chat";
+    private static final String PREF_KEY_BACKEND = "backend_is_asus";
+    private static final int URL_MIN = 8;
 
     private TextView logView;
     private ScrollView logScroll;
     private EditText input;
     private Button sendBtn;
+    private Button clearBtn;
+    private RadioGroup backendGroup;
+    private RadioButton radioCloud;
+    private RadioButton radioAsus;
     private final List<Msg> history = new ArrayList<Msg>();
     private final Handler main = new Handler(Looper.getMainLooper());
 
@@ -70,21 +91,98 @@ public class AiChatActivity extends Activity {
         logScroll = findViewById(R.id.ai_scroll);
         input = findViewById(R.id.ai_input);
         sendBtn = findViewById(R.id.ai_send);
-        appendLog("Rendszer: " + (BuildConfig.AI_API_KEY == null || BuildConfig.AI_API_KEY.isEmpty()
-                ? getString(R.string.ai_no_key)
-                : "Kulcs beállítva. Modell: " + BuildConfig.AI_MODEL + "\n"));
-        sendBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                send();
+        clearBtn = findViewById(R.id.ai_clear);
+        backendGroup = findViewById(R.id.ai_backend_group);
+        radioCloud = findViewById(R.id.ai_backend_cloud);
+        radioAsus = findViewById(R.id.ai_backend_asus);
+
+        final boolean hasAsus = hasAsusChatUrl();
+        if (!hasAsus) {
+            backendGroup.setVisibility(View.GONE);
+            appendLog(getString(R.string.ai_asus_unconfigured) + "\n\n");
+        } else {
+            final SharedPreferences p = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+            final boolean cloudKeyOk =
+                    BuildConfig.AI_API_KEY != null && !BuildConfig.AI_API_KEY.isEmpty();
+            final boolean asusWanted =
+                    p.contains(PREF_KEY_BACKEND)
+                            ? p.getBoolean(PREF_KEY_BACKEND, false)
+                            : !cloudKeyOk;
+            RadioGroup.OnCheckedChangeListener listener =
+                    new RadioGroup.OnCheckedChangeListener() {
+                        @Override
+                        public void onCheckedChanged(RadioGroup group, int checkedId) {
+                            boolean asus = checkedId == R.id.ai_backend_asus;
+                            p.edit().putBoolean(PREF_KEY_BACKEND, asus).apply();
+                            appendLog(
+                                    (asus ? "→ backend: ASUS / LAN, modell: " : "→ backend: felhő, modell: ")
+                                            + (asus ? BuildConfig.AI_ASUS_MODEL : BuildConfig.AI_MODEL) + ".\n"
+                                            + "(Az üzenetek megmaradnak; a következő küldéskor ezt a szervert hívjuk.)\n");
+                        }
+                    };
+            backendGroup.setOnCheckedChangeListener(null);
+            if (asusWanted) {
+                radioAsus.setChecked(true);
+            } else {
+                radioCloud.setChecked(true);
             }
-        });
+            backendGroup.setOnCheckedChangeListener(listener);
+        }
+
+        appendLog("Rendszer: " + headerLineForLog(hasAsus) + "\n");
+        clearBtn.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        history.clear();
+                        appendLog("\n— " + getString(R.string.ai_clear) + " —\n");
+                    }
+                });
+        sendBtn.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        send();
+                    }
+                });
+    }
+
+    private boolean hasAsusChatUrl() {
+        String u = BuildConfig.AI_ASUS_CHAT_COMPLETIONS_URL;
+        return u != null && u.trim().length() >= URL_MIN;
+    }
+
+    private boolean isAsusBackend() {
+        if (!hasAsusChatUrl()) {
+            return false;
+        }
+        return radioAsus.isChecked();
+    }
+
+    private String headerLineForLog(boolean hasAsus) {
+        if (BuildConfig.AI_API_KEY == null || BuildConfig.AI_API_KEY.isEmpty()) {
+            return getString(R.string.ai_no_key) + (hasAsus
+                    ? " · ASUS: " + BuildConfig.AI_ASUS_MODEL
+                    : "");
+        }
+        if (!hasAsus) {
+            return "Kulcs ok · felhő: " + BuildConfig.AI_MODEL;
+        }
+        return "Kulcs ok · felhő: " + BuildConfig.AI_MODEL + " | ASUS: " + BuildConfig.AI_ASUS_MODEL;
     }
 
     private void send() {
-        if (BuildConfig.AI_API_KEY == null || BuildConfig.AI_API_KEY.isEmpty()) {
-            Toast.makeText(this, R.string.ai_no_key, Toast.LENGTH_LONG).show();
-            return;
+        boolean asus = isAsusBackend();
+        if (!asus) {
+            if (BuildConfig.AI_API_KEY == null || BuildConfig.AI_API_KEY.isEmpty()) {
+                Toast.makeText(this, R.string.ai_no_key, Toast.LENGTH_LONG).show();
+                return;
+            }
+        } else {
+            if (!hasAsusChatUrl()) {
+                Toast.makeText(this, R.string.ai_asus_unconfigured, Toast.LENGTH_LONG).show();
+                return;
+            }
         }
         String text = input.getText() != null ? input.getText().toString().trim() : "";
         if (text.isEmpty()) {
@@ -95,38 +193,54 @@ public class AiChatActivity extends Activity {
         appendLog("\n[Te] " + text + "\n");
         sendBtn.setEnabled(false);
         sendBtn.setText(R.string.ai_sending);
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final String err = doChat();
-                main.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        sendBtn.setEnabled(true);
-                        sendBtn.setText(R.string.ai_send);
-                        if (err != null) {
-                            appendLog("[Hiba] " + err + "\n");
-                            Toast.makeText(AiChatActivity.this, err, Toast.LENGTH_LONG).show();
-                        }
-                    }
-                });
-            }
-        }).start();
+        new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                final String err = doChat();
+                                main.post(
+                                        new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                sendBtn.setEnabled(true);
+                                                sendBtn.setText(R.string.ai_send);
+                                                if (err != null) {
+                                                    appendLog("[Hiba] " + err + "\n");
+                                                    Toast.makeText(AiChatActivity.this, err, Toast.LENGTH_LONG)
+                                                            .show();
+                                                }
+                                            }
+                                        });
+                            }
+                        })
+                .start();
     }
 
     private String doChat() {
         HttpURLConnection c = null;
+        final boolean asus = isAsusBackend();
         try {
-            URL u = new URL(BuildConfig.AI_CHAT_COMPLETIONS_URL);
+            String urlS = asus
+                    ? BuildConfig.AI_ASUS_CHAT_COMPLETIONS_URL
+                    : BuildConfig.AI_CHAT_COMPLETIONS_URL;
+            String model = asus ? BuildConfig.AI_ASUS_MODEL : BuildConfig.AI_MODEL;
+            String bearer = asus ? BuildConfig.AI_ASUS_API_KEY : BuildConfig.AI_API_KEY;
+            if (bearer == null) {
+                bearer = "";
+            }
+
+            URL u = new URL(urlS);
             c = (HttpURLConnection) u.openConnection();
             c.setConnectTimeout(CONNECT_TIMEOUT_MS);
             c.setReadTimeout(READ_TIMEOUT_MS);
             c.setRequestMethod("POST");
             c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            c.setRequestProperty("Authorization", "Bearer " + BuildConfig.AI_API_KEY);
+            if (bearer.length() > 0) {
+                c.setRequestProperty("Authorization", "Bearer " + bearer);
+            }
             c.setDoOutput(true);
             JSONObject root = new JSONObject();
-            root.put("model", BuildConfig.AI_MODEL);
+            root.put("model", model);
             JSONArray msgs = new JSONArray();
             for (Msg m : history) {
                 JSONObject o = new JSONObject();
@@ -137,7 +251,6 @@ public class AiChatActivity extends Activity {
             root.put("messages", msgs);
             root.put("temperature", 0.7);
             byte[] body = root.toString().getBytes(Charset.forName("UTF-8"));
-            // KITKAT+ (19): különben NoSuchMethodError galaxy3 (min 7) buildeken; régi: Content-Length
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 c.setFixedLengthStreamingMode(body.length);
             } else {
@@ -174,12 +287,13 @@ public class AiChatActivity extends Activity {
             }
             history.add(new Msg("assistant", content));
             final String show = content;
-            main.post(new Runnable() {
-                @Override
-                public void run() {
-                    appendLog("[AI] " + show + "\n");
-                }
-            });
+            main.post(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            appendLog((asus ? "[ASUS] " : "[Felhő] ") + show + "\n");
+                        }
+                    });
             return null;
         } catch (Exception e) {
             return e.getMessage() != null ? e.getMessage() : e.toString();
@@ -191,8 +305,8 @@ public class AiChatActivity extends Activity {
     }
 
     private static String readAll(InputStream in) throws Exception {
-            BufferedReader r = new BufferedReader(
-                    new InputStreamReader(in, Charset.forName("UTF-8")));
+        BufferedReader r = new BufferedReader(
+                new InputStreamReader(in, Charset.forName("UTF-8")));
         StringBuilder b = new StringBuilder();
         String line;
         while ((line = r.readLine()) != null) {
@@ -213,11 +327,12 @@ public class AiChatActivity extends Activity {
 
     private void appendLog(final String s) {
         logView.append(s);
-        logScroll.post(new Runnable() {
-            @Override
-            public void run() {
-                logScroll.fullScroll(View.FOCUS_DOWN);
-            }
-        });
+        logScroll.post(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        logScroll.fullScroll(View.FOCUS_DOWN);
+                    }
+                });
     }
 }
