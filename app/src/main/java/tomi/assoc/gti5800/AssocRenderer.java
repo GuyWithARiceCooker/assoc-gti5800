@@ -1,145 +1,222 @@
 package tomi.assoc.gti5800;
 
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Typeface;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLU;
-import android.opengl.GLUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 /**
- * OpenGL ES 1.0 renderelő: a „assoc” szöveg sárga, textúrázott négyzeten, Y tengely körüli forgatás,
- * kicsi dőléssel 3D érzet. Cél: FIMG 3DSE (OpenGL ES 1.x) — nincs shader.
+ * OpenGL ES 1.0: a „assoc” szöveg valódi 3D-s geometria — 5×7-es rácson minden sárga „pixel”
+ * extrudált doboz, világítással, forgatással. Cél: FIMG / OnePlus, shader nélküli fixed pipeline;
+ * a régi GL 1.x a lap-normál + egy fénynél sokszínű árnyalatot ad (nem 2D tábla a térben).
  */
 public class AssocRenderer implements GLSurfaceView.Renderer {
-    /** Nagyobb atlas: a 240×400 kijelzőre skálázva is marad körvonal + a GL LINEAR szűrés nem mos el mindent */
-    private static final int TEX_W = 512;
-    private static final int TEX_H = 256;
+    private static final float CREAM_R = 1f;
+    private static final float CREAM_G = 0.95f;
+    private static final float CREAM_B = 0.45f;
 
-    private int textureId = -1;
+    /** Rács cella méret világ-egységben: kis szó (assoc) a képernyő közepe. */
+    private static final float CS = 0.11f;
+    /** Két betű oszlop közötti réselés. */
+    private static final float GAP = CS * 0.65f;
+    /** Extrudálás: „vastag” 3D betű profil, oldalról is látszik. */
+    private static final float DEPTH = 0.32f;
+    private static final int NROWS = 7;
+    private static final int NCOLS = 5;
+
+    /** 5×7, '#' = extrudált kocka. Az „assoc” minúsz betűi — egységes, olvasható blokk-stílus. */
+    private static final String[] PAT_A = {
+            " ### ",
+            "#   #",
+            "#   #",
+            "#####",
+            "#   #",
+            "#   #",
+            " ### ",
+    };
+    private static final String[] PAT_S = {
+            " ####",
+            "#    ",
+            " ### ",
+            "    #",
+            "    #",
+            "#   #",
+            " ####",
+    };
+    private static final String[] PAT_O = {
+            " ### ",
+            "#   #",
+            "#   #",
+            "#   #",
+            "#   #",
+            "#   #",
+            " ### ",
+    };
+    private static final String[] PAT_C = {
+            " ####",
+            "#    ",
+            "#    ",
+            "#    ",
+            "#    ",
+            "#    ",
+            " ####",
+    };
+
     private int viewportW;
     private int viewportH;
     private float angleY;
     private float angleX;
     private float zCam = 4.2f;
-
-    private final FloatBuffer vertexBuffer;
-    private final FloatBuffer texBuffer;
+    private FloatBuffer vertexBuffer;
+    private FloatBuffer normalBuffer;
+    private int triCount;
+    private boolean meshReady;
 
     public AssocRenderer() {
-        // négyzet az XY síkban, középpont (0,0,0) — 2,5 egység széles (széles képernyőarányhoz húzva később a textúrát is)
-        float v[] = {
-            -1.2f, -0.5f, 0,
-            1.2f, -0.5f, 0,
-            -1.2f, 0.5f, 0,
-            1.2f, 0.5f, 0
-        };
-        ByteBuffer vbb = ByteBuffer.allocateDirect(v.length * 4);
-        vbb.order(ByteOrder.nativeOrder());
-        vertexBuffer = vbb.asFloatBuffer();
-        vertexBuffer.put(v);
-        vertexBuffer.position(0);
-
-        float t[] = {
-            0, 1, 1, 1, 0, 0, 1, 0
-        };
-        ByteBuffer tbb = ByteBuffer.allocateDirect(t.length * 4);
-        tbb.order(ByteOrder.nativeOrder());
-        texBuffer = tbb.asFloatBuffer();
-        texBuffer.put(t);
-        texBuffer.position(0);
+        buildMesh();
     }
 
-    /** Érintéskor kicsit mozgatja a kamerát / dőlést, hogy reagáljon a gép. */
+    private static void appendAxisBox(
+            List<Float> v, List<Float> n,
+            float x0, float y0, float z0, float w, float h, float d) {
+        // Doboz: [x0,x0+w]×[y0,y0+h]×[z0,z0+d]; a kamera +Z-ból néz, tehát a +Z-s lap z=z0+d.
+        final float z1 = z0 + d;
+        // +Z: kifelé CCW, ha +Z-ból nézzük a lapot (Y fel, X jobbra) — GL_BACK culling
+        addQuad(v, n, 0, 0, 1,
+                x0, y0, z1, x0, y0 + h, z1, x0 + w, y0 + h, z1, x0 + w, y0, z1);
+        // -Z: kifelé, ha -Z-ból
+        addQuad(v, n, 0, 0, -1,
+                x0, y0, z0, x0 + w, y0, z0, x0 + w, y0 + h, z0, x0, y0 + h, z0);
+        // +X
+        addQuad(v, n, 1, 0, 0,
+                x0 + w, y0, z0, x0 + w, y0 + h, z0, x0 + w, y0 + h, z1, x0 + w, y0, z1);
+        // -X
+        addQuad(v, n, -1, 0, 0,
+                x0, y0, z0, x0, y0, z1, x0, y0 + h, z1, x0, y0 + h, z0);
+        // +Y
+        addQuad(v, n, 0, 1, 0,
+                x0, y0 + h, z0, x0, y0 + h, z1, x0 + w, y0 + h, z1, x0 + w, y0 + h, z0);
+        // -Y
+        addQuad(v, n, 0, -1, 0,
+                x0, y0, z0, x0 + w, y0, z0, x0 + w, y0, z1, x0, y0, z1);
+    }
+
+    private static void addQuad(
+            List<Float> v, List<Float> n,
+            float nx, float ny, float nz,
+            float x1, float y1, float z1,
+            float x2, float y2, float z2,
+            float x3, float y3, float z3,
+            float x4, float y4, float z4) {
+        tri(v, n, nx, ny, nz, x1, y1, z1, x2, y2, z2, x3, y3, z3);
+        tri(v, n, nx, ny, nz, x1, y1, z1, x3, y3, z3, x4, y4, z4);
+    }
+
+    private static void tri(
+            List<Float> v, List<Float> n,
+            float nx, float ny, float nz,
+            float x1, float y1, float z1,
+            float x2, float y2, float z2,
+            float x3, float y3, float z3) {
+        for (int k = 0; k < 3; k++) {
+            n.add(nx);
+            n.add(ny);
+            n.add(nz);
+        }
+        v.add(x1);
+        v.add(y1);
+        v.add(z1);
+        v.add(x2);
+        v.add(y2);
+        v.add(z2);
+        v.add(x3);
+        v.add(y3);
+        v.add(z3);
+    }
+
+    private void buildMesh() {
+        List<Float> v = new ArrayList<Float>(4096);
+        List<Float> n = new ArrayList<Float>(4096);
+        String[][] patts = {PAT_A, PAT_S, PAT_S, PAT_O, PAT_C};
+        float blockW = NCOLS * CS;
+        float totalW = patts.length * blockW + (patts.length - 1) * GAP;
+        for (int li = 0; li < patts.length; li++) {
+            String[] pat = patts[li];
+            float left = -totalW * 0.5f + li * (blockW + GAP) - 2.5f * CS;
+            for (int r = 0; r < NROWS; r++) {
+                String row = pat[r];
+                for (int c = 0; c < NCOLS; c++) {
+                    if (c >= row.length()) {
+                        continue;
+                    }
+                    if (row.charAt(c) != '#') {
+                        continue;
+                    }
+                    float x0 = left + c * CS;
+                    float y0 = 3.5f * CS - (r + 1) * CS;
+                    float z0 = -DEPTH * 0.5f;
+                    appendAxisBox(v, n, x0, y0, z0, CS, CS, DEPTH);
+                }
+            }
+        }
+        triCount = v.size() / 9;
+        ByteBuffer vbb = ByteBuffer.allocateDirect(v.size() * 4);
+        vbb.order(ByteOrder.nativeOrder());
+        vertexBuffer = vbb.asFloatBuffer();
+        for (int i = 0; i < v.size(); i++) {
+            vertexBuffer.put(v.get(i));
+        }
+        vertexBuffer.position(0);
+        ByteBuffer nbb = ByteBuffer.allocateDirect(n.size() * 4);
+        nbb.order(ByteOrder.nativeOrder());
+        normalBuffer = nbb.asFloatBuffer();
+        for (int i = 0; i < n.size(); i++) {
+            normalBuffer.put(n.get(i));
+        }
+        normalBuffer.position(0);
+        meshReady = !v.isEmpty();
+    }
+
     public void nudgeCamera() {
-        zCam = 3.4f + (float) (Math.random() * 0.5);
+        zCam = 3.2f + (float) (Math.random() * 0.9f);
     }
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         gl.glHint(GL10.GL_PERSPECTIVE_CORRECTION_HINT, GL10.GL_NICEST);
-        gl.glClearColor(0.12f, 0.1f, 0.16f, 1f);
+        gl.glClearColor(0.1f, 0.08f, 0.14f, 1f);
         gl.glShadeModel(GL10.GL_SMOOTH);
         gl.glDisable(GL10.GL_DITHER);
         gl.glEnable(GL10.GL_DEPTH_TEST);
         gl.glDepthFunc(GL10.GL_LEQUAL);
         gl.glEnable(GL10.GL_CULL_FACE);
         gl.glCullFace(GL10.GL_BACK);
-
-        try {
-            buildAssocTexture(gl);
-        } catch (Throwable t) {
-            textureId = -1;
-        }
-    }
-
-    /**
-     * „assoc” textúra: három réteg (külső vastag + középső + kitöltés), mind
-     * {@link Paint.Join#ROUND} / {@link Paint.Cap#ROUND} — látványos „gömbölyded” vastag betű a pici kijelzőn is.
-     */
-    private void buildAssocTexture(GL10 gl) {
-        Bitmap bmp = Bitmap.createBitmap(TEX_W, TEX_H, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(bmp);
-        c.drawColor(0xFF000000);
-        final float x = TEX_W * 0.5f;
-        final float y = TEX_H * 0.58f;
-        final float textSize = TEX_H * 0.34f;
-
-        Paint outer = new Paint(Paint.ANTI_ALIAS_FLAG);
-        outer.setTypeface(Typeface.DEFAULT_BOLD);
-        outer.setTextSize(textSize);
-        outer.setTextAlign(Paint.Align.CENTER);
-        outer.setStyle(Paint.Style.STROKE);
-        outer.setStrokeWidth(TEX_H * 0.20f);
-        outer.setStrokeJoin(Paint.Join.ROUND);
-        outer.setStrokeCap(Paint.Cap.ROUND);
-        outer.setColor(0xFFE65100);
-
-        Paint mid = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mid.setTypeface(Typeface.DEFAULT_BOLD);
-        mid.setTextSize(textSize);
-        mid.setTextAlign(Paint.Align.CENTER);
-        mid.setStyle(Paint.Style.STROKE);
-        mid.setStrokeWidth(TEX_H * 0.11f);
-        mid.setStrokeJoin(Paint.Join.ROUND);
-        mid.setStrokeCap(Paint.Cap.ROUND);
-        mid.setColor(0xFFFFC107);
-
-        Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
-        fill.setTypeface(Typeface.DEFAULT_BOLD);
-        fill.setTextSize(textSize);
-        fill.setTextAlign(Paint.Align.CENTER);
-        fill.setStyle(Paint.Style.FILL);
-        fill.setColor(0xFFFFF9C4);
-
-        c.drawText("assoc", x, y, outer);
-        c.drawText("assoc", x, y, mid);
-        c.drawText("assoc", x, y, fill);
-
-        int[] tid = new int[1];
-        gl.glGenTextures(1, tid, 0);
-        textureId = tid[0];
-        gl.glBindTexture(GL10.GL_TEXTURE_2D, textureId);
-        // Apró képernyő: NEAREST, hogy a vastag kerek körvonal ne linear mosódjon el
-        gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MIN_FILTER, GL10.GL_NEAREST);
-        gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_MAG_FILTER, GL10.GL_NEAREST);
-        gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_S, GL10.GL_CLAMP_TO_EDGE);
-        gl.glTexParameterf(GL10.GL_TEXTURE_2D, GL10.GL_TEXTURE_WRAP_T, GL10.GL_CLAMP_TO_EDGE);
-        GLUtils.texImage2D(GL10.GL_TEXTURE_2D, 0, bmp, 0);
-        bmp.recycle();
+        // Kis forgatott meshnél a normálok skálázása: régi MALI/FIMG stabilabb így
+        gl.glEnable(GL10.GL_NORMALIZE);
+        // Egy enyhe irányfény: +oldal/él a „assoc” lemezén olvasható marad
+        gl.glEnable(GL10.GL_LIGHTING);
+        gl.glEnable(GL10.GL_LIGHT0);
+        // glColorMaterial csak GL11 — itt a sárga kizárólag glMaterialfv + fény (GL10-kompatibilis)
+        float[] pos = {1.2f, 1.4f, 2.0f, 0f};
+        gl.glLightfv(GL10.GL_LIGHT0, GL10.GL_POSITION, pos, 0);
+        float[] amb = {0.45f, 0.42f, 0.38f, 1f};
+        gl.glLightfv(GL10.GL_LIGHT0, GL10.GL_AMBIENT, amb, 0);
+        float[] dif = {0.95f, 0.88f, 0.7f, 1f};
+        gl.glLightfv(GL10.GL_LIGHT0, GL10.GL_DIFFUSE, dif, 0);
     }
 
     @Override
     public void onSurfaceChanged(GL10 gl, int w, int h) {
-        if (h == 0) h = 1;
+        if (h == 0) {
+            h = 1;
+        }
         viewportW = w;
         viewportH = h;
         gl.glViewport(0, 0, w, h);
@@ -148,47 +225,44 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
     @Override
     public void onDrawFrame(GL10 gl) {
         gl.glClear(GL10.GL_COLOR_BUFFER_BIT | GL10.GL_DEPTH_BUFFER_BIT);
-        // Első kockák: még nincs onSurfaceChanged → viewport 0 → aspect NaN, fekete / fagyás
-        if (viewportW < 1 || viewportH < 1) {
-            return;
-        }
-        if (textureId < 0) {
+        if (viewportW < 1 || viewportH < 1 || !meshReady) {
             return;
         }
         gl.glMatrixMode(GL10.GL_PROJECTION);
         gl.glLoadIdentity();
         float aspect = (float) viewportW / (float) viewportH;
         GLU.gluPerspective(gl, 50.0f, aspect, 0.1f, 100.0f);
-
         gl.glMatrixMode(GL10.GL_MODELVIEW);
         gl.glLoadIdentity();
         GLU.gluLookAt(gl, 0, 0, zCam, 0, 0, 0, 0, 1, 0);
-
-        angleY += 1.1f;
+        angleY += 0.85f;
         if (angleY >= 360f) {
             angleY -= 360f;
         }
-        angleX = 8f * (float) Math.sin(System.currentTimeMillis() * 0.001);
-
-        gl.glEnable(GL10.GL_TEXTURE_2D);
-        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY);
-        gl.glEnableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
-        gl.glBindTexture(GL10.GL_TEXTURE_2D, textureId);
-
+        angleX = 5f * (float) Math.sin(System.currentTimeMillis() * 0.001);
+        gl.glEnable(GL10.GL_LIGHTING);
+        gl.glEnable(GL10.GL_LIGHT0);
         gl.glPushMatrix();
+        gl.glTranslatef(0, 0.01f, 0);
         gl.glRotatef(angleX, 1, 0, 0);
         gl.glRotatef(angleY, 0, 1, 0);
-        // enyhe eltolás, hogy ne „lógjon” a szélén
-        gl.glTranslatef(0, 0.1f, 0);
-
+        gl.glMaterialfv(
+                GL10.GL_FRONT_AND_BACK,
+                GL10.GL_AMBIENT,
+                new float[]{CREAM_R * 0.45f, CREAM_G * 0.45f, CREAM_B * 0.45f, 1f},
+                0);
+        gl.glMaterialfv(
+                GL10.GL_FRONT_AND_BACK,
+                GL10.GL_DIFFUSE,
+                new float[]{CREAM_R, CREAM_G, CREAM_B, 1f},
+                0);
         gl.glVertexPointer(3, GL10.GL_FLOAT, 0, vertexBuffer);
-        gl.glTexCoordPointer(2, GL10.GL_FLOAT, 0, texBuffer);
-        gl.glColor4f(1f, 1f, 1f, 1f);
-        gl.glDrawArrays(GL10.GL_TRIANGLE_STRIP, 0, 4);
-        gl.glPopMatrix();
-
-        gl.glDisableClientState(GL10.GL_TEXTURE_COORD_ARRAY);
+        gl.glNormalPointer(GL10.GL_FLOAT, 0, normalBuffer);
+        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY);
+        gl.glEnableClientState(GL10.GL_NORMAL_ARRAY);
+        gl.glDrawArrays(GL10.GL_TRIANGLES, 0, triCount * 3);
+        gl.glDisableClientState(GL10.GL_NORMAL_ARRAY);
         gl.glDisableClientState(GL10.GL_VERTEX_ARRAY);
-        gl.glDisable(GL10.GL_TEXTURE_2D);
+        gl.glPopMatrix();
     }
 }
