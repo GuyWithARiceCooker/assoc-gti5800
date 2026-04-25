@@ -1,6 +1,6 @@
 {
-  "latestVersionCode": 12,
-  "latestVersionName": "1.9.1-dollyfix",
+  "latestVersionCode": 13,
+  "latestVersionName": "1.10-paneltop",
   "apkUrl": "",
   "galaxy3ApkUrl": "",
   "_comment": "full (OnePlus, min 14): apkUrl = Release HTTPS APK. I5800 (galaxy3): galaxy3ApkUrl = a galaxy3-*.apk, ugyanaz a latestVersionCode; üres = nincs auto felugró, de hosszú érintés. Régi 2.2: GitHub TLS gyakran nem működik — HTTP/LAN/egyéb tükör, vagy böngésző+SD kézi."
