@@ -4,8 +4,9 @@
 // (adb device), vagy Mac→ASUS: `tools/build-on-asus.sh`. Wi-Fi ADB: telefonon vezeték nélküli hibakeresés,
 // ASUSon `adb pair` / `adb connect`, majd `PREFER_WIRELESS=1` ugyanazzal a scripttel (lásd tools/adb-install-and-start.sh feje). A távoli `docs/update.json`
 // önfrissítés késleltetett, jóváhagyós — éles/teszt; kódváltás után ezt ne várd, hanem -r install.
-// AI: local.properties (ne commitolj): ASSOC_AI_API_KEY=… ; opcionális ASUS/DeepSeek (Ollama-stílus OpenAI API):
-// ASSOC_ASUS_CHAT_COMPLETIONS_URL, ASSOC_ASUS_API_KEY (üres = nincs Authorization), ASSOC_ASUS_MODEL
+// AI: local.properties (ne commitolj). ASUS/LAN: ASSOC_ASUS_OLLAMA_BASE=http://IP:11434, ASSOC_ASUS_MODEL, ASSOC_ASUS_OLLAMA_NATIVE
+// =true → POST …/api/chat (Ollama natív, nem /v1/… — az sok gép 404). =false + ASSOC_ASUS_CHAT_COMPLETIONS_URL → OpenAI-kompatibilis /v1/chat/completions.
+// ASSOC_ASUS_API_KEY: üres = nincs Authorization.
 plugins {
     id 'com.android.application'
 }
@@ -22,7 +23,9 @@ def escForBuildConfig = { String s ->
     s.replace('\\', '\\\\').replace('"', '\\"')
 }
 def aiKeyEscaped = escForBuildConfig(localProps.getProperty('ASSOC_AI_API_KEY', ''))
-def asusChatUrl = escForBuildConfig(localProps.getProperty('ASSOC_ASUS_CHAT_COMPLETIONS_URL', 'http://192.168.0.59:11434/v1/chat/completions'))
+def asusOllamaNative = localProps.getProperty('ASSOC_ASUS_OLLAMA_NATIVE', 'true') == 'true'
+def asusOllamaBase = escForBuildConfig(localProps.getProperty('ASSOC_ASUS_OLLAMA_BASE', 'http://192.168.0.59:11434'))
+def asusChatUrl = escForBuildConfig(localProps.getProperty('ASSOC_ASUS_CHAT_COMPLETIONS_URL', 'https://api.deepseek.com/v1/chat/completions'))
 def asusKeyEscaped = escForBuildConfig(localProps.getProperty('ASSOC_ASUS_API_KEY', ''))
 def asusModelEscaped = escForBuildConfig(localProps.getProperty('ASSOC_ASUS_MODEL', 'deepseek-r1:8b'))
 
@@ -35,8 +38,8 @@ android {
         // Alap: `full` flavor — távoli frissítés, min API 14. Külön: `galaxy3` (GT-I5800) min 7, nincs AndroidX/önfrissítés.
         minSdk 14
         targetSdk 34
-        versionCode 15
-        versionName "1.12-dual-ai"
+        versionCode 16
+        versionName "1.12.1-ollama-api"
         // Távoli frissítés (csak `full` használja; `galaxy3` stub)
         buildConfigField "String", "UPDATE_JSON_URL",
             "\"https://raw.githubusercontent.com/GuyWithARiceCooker/assoc-gti5800/main/docs/update.json\""
@@ -46,7 +49,9 @@ android {
         buildConfigField "String", "AI_CHAT_COMPLETIONS_URL",
             "\"https://api.openai.com/v1/chat/completions\""
         buildConfigField "String", "AI_MODEL", "\"gpt-4o-mini\""
-        // OpenAI-kompatibilis chat ugyanazon a hálózaton (Ollama: :11434 /v1/chat/completions)
+        // ASUS/LAN: alapból Ollama /api/chat (lásd AI_ASUS_OLLAMA_NATIVE); különben OpenAI-s URL (DeepSeek cloud stb.)
+        buildConfigField "boolean", "AI_ASUS_OLLAMA_NATIVE", asusOllamaNative ? "true" : "false"
+        buildConfigField "String", "AI_ASUS_OLLAMA_BASE", "\"${asusOllamaBase}\""
         buildConfigField "String", "AI_ASUS_CHAT_COMPLETIONS_URL", "\"${asusChatUrl}\""
         buildConfigField "String", "AI_ASUS_API_KEY", "\"${asusKeyEscaped}\""
         buildConfigField "String", "AI_ASUS_MODEL", "\"${asusModelEscaped}\""
@@ -64,7 +69,7 @@ android {
             targetSdk 10
             // Ugyanaz az AI csevegés, mint a full (ASSOC kulcs; nagyon régi OS-en a HTTPS/TLS még elhasalhat)
             buildConfigField "boolean", "AI_ENABLED", "true"
-            versionName "1.12-g3-dual"
+            versionName "1.12.1-g3-ollama"
         }
     }
     buildTypes {

@@ -35,10 +35,11 @@ import java.util.List;
  *   <li><strong>Felhő</strong> — {@link BuildConfig#AI_CHAT_COMPLETIONS_URL}, modell
  *   {@link BuildConfig#AI_MODEL}, Bearer {@link BuildConfig#AI_API_KEY} ({@code local.properties:
  *   ASSOC_AI_API_KEY})</li>
- *   <li><strong>ASUS / LAN</strong> (pl. Ollama) — {@link BuildConfig#AI_ASUS_CHAT_COMPLETIONS_URL},
- *   modell {@link BuildConfig#AI_ASUS_MODEL}; kulcs {@link BuildConfig#AI_ASUS_API_KEY} (üres
- *   = nincs {@code Authorization} fejléc; tipikus helyi szervernél). URL/kulcsok build idején
- *   {@code local.properties}-ból (ne legyen a repóban kulcs).
+ *   <li><strong>ASUS / LAN</strong> — ha {@link BuildConfig#AI_ASUS_OLLAMA_NATIVE}: Ollama
+ *   <code>POST {AI_ASUS_OLLAMA_BASE}/api/chat</code> (nem a gyakori 404-es <code>/v1/chat/completions</code>).
+ *   Ha false: OpenAI-s URL ({@link BuildConfig#AI_ASUS_CHAT_COMPLETIONS_URL}, pl. DeepSeek cloud).
+ *   Modell: {@link BuildConfig#AI_ASUS_MODEL}; kulcs {@link BuildConfig#AI_ASUS_API_KEY} (üres = nincs
+ *   {@code Authorization}).
  * </ol>
  * <p>
  * <strong>„Memória” (előzmények):</strong> a kliens {@link #history} listában tartja a
@@ -148,6 +149,10 @@ public class AiChatActivity extends Activity {
     }
 
     private boolean hasAsusChatUrl() {
+        if (BuildConfig.AI_ASUS_OLLAMA_NATIVE) {
+            String b = BuildConfig.AI_ASUS_OLLAMA_BASE;
+            return b != null && b.trim().length() >= URL_MIN;
+        }
         String u = BuildConfig.AI_ASUS_CHAT_COMPLETIONS_URL;
         return u != null && u.trim().length() >= URL_MIN;
     }
@@ -216,9 +221,117 @@ public class AiChatActivity extends Activity {
                 .start();
     }
 
+    private org.json.JSONArray buildMessagesJsonArray() throws org.json.JSONException {
+        JSONArray msgs = new JSONArray();
+        for (Msg m : history) {
+            JSONObject o = new JSONObject();
+            o.put("role", m.role);
+            o.put("content", m.content);
+            msgs.put(o);
+        }
+        return msgs;
+    }
+
+    private static String stripTrailingSlashes(String s) {
+        if (s == null) {
+            return "";
+        }
+        String t = s.trim();
+        while (t.endsWith("/")) {
+            t = t.substring(0, t.length() - 1);
+        }
+        return t;
+    }
+
+    /**
+     * Ollama natív: {@code /api/chat} + nem streaming — a {@code /v1/chat/completions} sok hoszton 404
+     * (más a route).
+     */
+    private String doOllamaNativeChat() {
+        HttpURLConnection c = null;
+        try {
+            String base = stripTrailingSlashes(BuildConfig.AI_ASUS_OLLAMA_BASE);
+            if (base.length() < URL_MIN) {
+                return "ASSOC_ASUS_OLLAMA_BASE nincs beállítva (build: local.properties).";
+            }
+            String model = BuildConfig.AI_ASUS_MODEL;
+            String bearer = BuildConfig.AI_ASUS_API_KEY != null ? BuildConfig.AI_ASUS_API_KEY : "";
+            String urlS = base + "/api/chat";
+            URL u = new URL(urlS);
+            c = (HttpURLConnection) u.openConnection();
+            c.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            c.setReadTimeout(READ_TIMEOUT_MS);
+            c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            if (bearer.length() > 0) {
+                c.setRequestProperty("Authorization", "Bearer " + bearer);
+            }
+            c.setDoOutput(true);
+            JSONObject root = new JSONObject();
+            root.put("model", model);
+            root.put("messages", buildMessagesJsonArray());
+            root.put("stream", false);
+            JSONObject options = new JSONObject();
+            options.put("temperature", 0.7);
+            root.put("options", options);
+            byte[] body = root.toString().getBytes(Charset.forName("UTF-8"));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                c.setFixedLengthStreamingMode(body.length);
+            } else {
+                c.setRequestProperty("Content-Length", Integer.toString(body.length));
+            }
+            OutputStream out = c.getOutputStream();
+            out.write(body);
+            out.close();
+            int code = c.getResponseCode();
+            InputStream in = code >= 200 && code < 300
+                    ? c.getInputStream()
+                    : c.getErrorStream();
+            if (in == null) {
+                return "HTTP " + code + " (Ollama " + urlS + "). Próbáld: ollama pull " + model;
+            }
+            String resp = readAll(in);
+            in.close();
+            if (code < 200 || code >= 300) {
+                return "HTTP " + code + " (Ollama /api/chat): " + trunc(resp, 500);
+            }
+            JSONObject json = new JSONObject(resp);
+            if (json.has("error") && !json.isNull("error")) {
+                return "Ollama: " + json.optString("error", "");
+            }
+            JSONObject message = json.optJSONObject("message");
+            if (message == null) {
+                return "Nincs message (Ollama): " + trunc(resp, 200);
+            }
+            String content = message.optString("content", "");
+            if (content.isEmpty()) {
+                return "Üres Ollama válasz.";
+            }
+            history.add(new Msg("assistant", content));
+            final String show = content;
+            main.post(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            appendLog("[ASUS/Ollama] " + show + "\n");
+                        }
+                    });
+            return null;
+        } catch (Exception e) {
+            return e.getMessage() != null ? e.getMessage() : e.toString();
+        } finally {
+            if (c != null) {
+                c.disconnect();
+            }
+        }
+    }
+
     private String doChat() {
         HttpURLConnection c = null;
         final boolean asus = isAsusBackend();
+        if (asus && BuildConfig.AI_ASUS_OLLAMA_NATIVE) {
+            return doOllamaNativeChat();
+        }
         try {
             String urlS = asus
                     ? BuildConfig.AI_ASUS_CHAT_COMPLETIONS_URL
@@ -241,14 +354,7 @@ public class AiChatActivity extends Activity {
             c.setDoOutput(true);
             JSONObject root = new JSONObject();
             root.put("model", model);
-            JSONArray msgs = new JSONArray();
-            for (Msg m : history) {
-                JSONObject o = new JSONObject();
-                o.put("role", m.role);
-                o.put("content", m.content);
-                msgs.put(o);
-            }
-            root.put("messages", msgs);
+            root.put("messages", buildMessagesJsonArray());
             root.put("temperature", 0.7);
             byte[] body = root.toString().getBytes(Charset.forName("UTF-8"));
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
