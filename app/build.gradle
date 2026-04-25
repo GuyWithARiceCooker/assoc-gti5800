@@ -1,4 +1,4 @@
-// modul: assoc gti5800 app — FIMG / OpenGL ES 1.0, min API 7–8 (Galaxy 3)
+// modul: assoc gti5800 app — OpenGL ES 1.0; önfrissítés min API 14 (I5800 API 7–8: régi 1.3 / csak manuális sideload)
 plugins {
     id 'com.android.application'
 }
@@ -9,12 +9,14 @@ android {
 
     defaultConfig {
         applicationId "tomi.assoc.gti5800"
-        // Galaxy 3 (GT-I5800): 2.1 = API 7, Froyo = 8 — ES 1.0 path
-        // targetSdk: sideload Android 15+ újabb gép: „must target at least 24” – régi I5800 továbbra is a minSdk-t nézi
-        minSdk 7
+        // Önfrissítés: androidx.core min 14 — a GT-I5800 (API 7–8) használja a 1.3-as, nem-önfrissítő buildet; 1.4+: min Android 4.0 (API 14)
+        minSdk 14
         targetSdk 34
-        versionCode 4
-        versionName "1.3-fekete-jav"
+        versionCode 6
+        versionName "1.5-selfupdate"
+        // Távoli frissítés: this JSON a GitHubon (main), nem kell újrafordítani a verzió URL miatt
+        buildConfigField "String", "UPDATE_JSON_URL",
+            "\"https://raw.githubusercontent.com/GuyWithARiceCooker/assoc-gti5800/main/docs/update.json\""
     }
     buildTypes {
         release {
@@ -25,8 +27,11 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
-    // tiszta framework; a régi telón nincs AndroidX
+    implementation 'androidx.core:core:1.12.0'
 }

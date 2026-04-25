@@ -8,6 +8,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.content.Intent;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
@@ -21,6 +23,7 @@ import android.widget.Toast;
 public class AssocActivity extends Activity {
     private GLSurfaceView glView;
     private AssocRenderer renderer;
+    private GestureDetector gesture;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -48,13 +51,28 @@ public class AssocActivity extends Activity {
         // Érintés: a GLSurfaceView alapból gyakran nem viszi a touchot — „nem reagál”
         glView.setClickable(true);
         glView.setFocusable(true);
+        // egy kopp: nudge, hosszú: távoli frissítés ellenőrzés
+        gesture = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDown(MotionEvent e) {
+                return true;
+            }
+
+            @Override
+            public boolean onSingleTapConfirmed(MotionEvent e) {
+                renderer.nudgeCamera();
+                return true;
+            }
+
+            @Override
+            public void onLongPress(MotionEvent e) {
+                RemoteUpdateManager.startManualCheck(AssocActivity.this);
+            }
+        });
         glView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    renderer.nudgeCamera();
-                }
-                return true;
+                return gesture.onTouchEvent(event);
             }
         });
         setContentView(glView);
@@ -88,6 +106,24 @@ public class AssocActivity extends Activity {
         super.onResume();
         if (glView != null) {
             glView.onResume();
+        }
+        // Távoli update.json: ha később nagyobb latestVersionCode, felugró
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                RemoteUpdateManager.maybeAutoCheck(AssocActivity.this);
+            }
+        }, 5000L);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == RemoteUpdateManager.RC_INSTALL_SETTINGS) {
+            Toast.makeText(
+                    this,
+                    "Ismeretlen forrás engedély: hosszú érintés → frissítés",
+                    Toast.LENGTH_LONG).show();
         }
     }
 }
