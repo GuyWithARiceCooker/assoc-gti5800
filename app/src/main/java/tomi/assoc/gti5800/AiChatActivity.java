@@ -59,7 +59,7 @@ public class AiChatActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (!BuildConfig.AI_ENABLED) {
-            Toast.makeText(this, "AI csevegés nincs engedélyezve ebben a buildekben.", Toast.LENGTH_LONG)
+            Toast.makeText(this, "AI csevegés nincs engedélyezve ebben a buildben.", Toast.LENGTH_LONG)
                     .show();
             finish();
             return;

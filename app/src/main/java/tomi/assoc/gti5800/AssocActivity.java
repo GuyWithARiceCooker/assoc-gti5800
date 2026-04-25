@@ -79,7 +79,7 @@ public class AssocActivity extends Activity {
                         } else {
                             Toast.makeText(
                                             AssocActivity.this,
-                                            "AI csevegés nincs engedélyezve ebben a buildekben.",
+                                            "AI csevegés nincs engedélyezve ebben a buildben.",
                                             Toast.LENGTH_LONG)
                                     .show();
                         }
