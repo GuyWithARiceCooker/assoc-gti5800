@@ -11,7 +11,6 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.content.Intent;
 import android.view.GestureDetector;
-import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
@@ -57,7 +56,7 @@ public class AssocActivity extends Activity {
         // Érintés: a GLSurfaceView alapból gyakran nem viszi a touchot — „nem reagál”
         glView.setClickable(true);
         glView.setFocusable(true);
-        // egy kopp: nudge · dupla: AI csevegés (full + galaxy3, ha van kulcs) · hosszú: távoli frissítés
+        // egy kopp: (üres) · dupla: AI · hosszú: távoli frissítés — a 3D jelenet statikus, nincs nudge
         gesture = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDown(MotionEvent e) {
@@ -66,7 +65,6 @@ public class AssocActivity extends Activity {
 
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
-                renderer.nudgeCamera();
                 return true;
             }
 
@@ -139,21 +137,6 @@ public class AssocActivity extends Activity {
             }, 800);
         } catch (PackageManager.NameNotFoundException ignored) {
         }
-    }
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && event.getRepeatCount() == 0) {
-            boolean next = !renderer.isDollyZoomEnabled();
-            renderer.setDollyZoomEnabled(next);
-            Toast.makeText(
-                            this,
-                            next ? R.string.dolly_on : R.string.dolly_off,
-                            Toast.LENGTH_SHORT)
-                    .show();
-            return true;
-        }
-        return super.onKeyDown(keyCode, event);
     }
 
     @Override

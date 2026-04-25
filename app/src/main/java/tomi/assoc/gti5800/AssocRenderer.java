@@ -13,13 +13,10 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 /**
- * OpenGL ES 1.0: 5×7 rács, amelyből a „<strong>assoc</strong>” alakzat felül nézetből, <strong>low-poly
- * panelházak</strong> (téglatestek) kirajzolják; a <strong>talajon XZ</strong> sík, <strong>Y</strong> a
- * magasság. Felülnézethez a kamera a <strong>+Y</strong> tengely fölé kerül, lefelé lát; lassan Y körül
- * forgatjuk a várost. Cél: FIMG / OnePlus, fixed pipeline, shader nélkül.
- * <p>
- * A dolly: a <strong>szem (Y) magassága</strong> bólint szinuszban (röviden „fel-le repül a madár”),
- * FOV fix. A 2D UI továbbra is a GL fölött maradhat.
+ * OpenGL ES 1.0: <strong>felülnézeti, low-poly panelházak</strong> (téglatestek) egy egyszerű
+ * rácson — <strong>nincs</strong> felirat / “assoc” minta, <strong>statikus jelenet</strong> (a kamera
+ * és a város <strong>nem forog</strong>, nincs dolly). A talaj <strong>XZ</strong> sík, <strong>Y</strong> a magasság;
+ * a nézőpont a <strong>+Y</strong> fölül lefelé. Cél: FIMG / OnePlus, fixed pipeline, shader nélkül.
  */
 public class AssocRenderer implements GLSurfaceView.Renderer {
     private static final float CREAM_R = 1f;
@@ -31,36 +28,17 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
 
     private static final float CS = 0.11f;
     private static final float GAP = CS * 0.65f;
-    /** „Utcacsempe”: a tömb nem teli, panel között rés. */
+    /** Utcarész a cellák között. */
     private static final float BUILD_INSET = 0.012f;
     private static final float BLD_H_LO = 0.18f;
     private static final float BLD_H_SPAN = 0.32f;
-    private static final int NROWS = 7;
-    private static final int NCOLS = 5;
-
-    private static final String[] PAT_A = {
-            " ### ", "#   #", "#   #", "#####", "#   #", "#   #", " ### ",
-    };
-    private static final String[] PAT_S = {
-            " ####", "#    ", " ### ", "    #", "    #", "#   #", " ####",
-    };
-    private static final String[] PAT_O = {
-            " ### ", "#   #", "#   #", "#   #", "#   #", "#   #", " ### ",
-    };
-    private static final String[] PAT_C = {
-            " ####", "#    ", "#    ", "#    ", "#    ", "#    ", " ####",
-    };
-
-    private static final float DOLLY_EYEY_CENTER = 3.6f;
-    private static final float DOLLY_EYEY_AMP = 0.9f;
-    private static final float DOLLY_PERIOD_SEC = 6.5f;
+    /** Rács: közel négyzetes telek, nincs betűs minta. */
+    private static final int GRID_COLS = 10;
+    private static final int GRID_ROWS = 8;
+    private static final float EYE_Y = 3.55f;
     private static final float PERSP_FOVY_DEG = 50f;
     private int viewportW;
     private int viewportH;
-    private float angleY;
-    private float yCamFree = 3.5f;
-    private float dollyPhaseOffsetRad = 0f;
-    private boolean dollyZoomEnabled = true;
     private FloatBuffer vertexBuffer;
     private FloatBuffer normalBuffer;
     private int triCountTotal;
@@ -129,8 +107,8 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
         v.add(z3);
     }
 
-    private static float panelHeight(int li, int r, int c) {
-        int h = (li * 31 + r * 7 + c * 13) & 0x7fff;
+    private static float panelHeight(int r, int c) {
+        int h = (r * 31 + c * 13) & 0x7fff;
         float t = (h % 1000) / 1000f;
         return BLD_H_LO + t * BLD_H_SPAN;
     }
@@ -138,34 +116,27 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
     private void buildMesh() {
         List<Float> v = new ArrayList<Float>(8192);
         List<Float> n = new ArrayList<Float>(8192);
-        String[][] patts = {PAT_A, PAT_S, PAT_S, PAT_O, PAT_C};
-        float blockW = NCOLS * CS;
-        float totalW = patts.length * blockW + (patts.length - 1) * GAP;
+        float blockW = GRID_COLS * CS;
+        float blockD = GRID_ROWS * CS;
         float minX = 1e6f;
         float maxX = -1e6f;
         float minZ = 1e6f;
         float maxZ = -1e6f;
-        for (int li = 0; li < patts.length; li++) {
-            String[] pat = patts[li];
-            float left = -totalW * 0.5f + li * (blockW + GAP) - 2.5f * CS;
-            for (int r = 0; r < NROWS; r++) {
-                String row = pat[r];
-                for (int c = 0; c < NCOLS; c++) {
-                    if (c >= row.length() || row.charAt(c) != '#') {
-                        continue;
-                    }
-                    float x0 = left + c * CS;
-                    float z0 = 3.5f * CS - (r + 1) * CS;
-                    float in = BUILD_INSET;
-                    float w = CS - 2f * in;
-                    float d = CS - 2f * in;
-                    float xh = panelHeight(li, r, c);
-                    appendAxisBox(v, n, x0 + in, 0f, z0 + in, w, xh, d);
-                    minX = Math.min(minX, x0);
-                    maxX = Math.max(maxX, x0 + CS);
-                    minZ = Math.min(minZ, z0);
-                    maxZ = Math.max(maxZ, z0 + CS);
-                }
+        float leftX = -blockW * 0.5f;
+        float topZ = blockD * 0.5f;
+        for (int r = 0; r < GRID_ROWS; r++) {
+            for (int c = 0; c < GRID_COLS; c++) {
+                float x0 = leftX + c * CS;
+                float z0 = topZ - (r + 1) * CS;
+                float in = BUILD_INSET;
+                float w = CS - 2f * in;
+                float d = CS - 2f * in;
+                float xh = panelHeight(r, c);
+                appendAxisBox(v, n, x0 + in, 0f, z0 + in, w, xh, d);
+                minX = Math.min(minX, x0);
+                maxX = Math.max(maxX, x0 + CS);
+                minZ = Math.min(minZ, z0);
+                maxZ = Math.max(maxZ, z0 + CS);
             }
         }
         if (minX > 1e5f) {
@@ -196,19 +167,18 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
         meshReady = !v.isEmpty() && triCountTotal > triCountGround;
     }
 
+    /**
+     * Korábban a kamera „bökése”; a jelenet statikus, nincs hatás. Megmarad a hívási hely kompat.
+     */
     public void nudgeCamera() {
-        dollyPhaseOffsetRad += 0.85f + (float) (Math.random() * 0.4f);
-        if (!dollyZoomEnabled) {
-            yCamFree = 2.8f + (float) (Math.random() * 0.9f);
-        }
     }
 
+    /** Dolly a régi API miatt; a rajzolás nem használja. */
     public void setDollyZoomEnabled(boolean on) {
-        dollyZoomEnabled = on;
     }
 
     public boolean isDollyZoomEnabled() {
-        return dollyZoomEnabled;
+        return false;
     }
 
     @Override
@@ -224,7 +194,6 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
         gl.glEnable(GL10.GL_NORMALIZE);
         gl.glEnable(GL10.GL_LIGHTING);
         gl.glEnable(GL10.GL_LIGHT0);
-        // Ferde „nap”: panelek oldalán árnyék, nem csak tető
         float[] pos = {0.45f, 0.0f, 0.35f, 0f};
         gl.glLightfv(GL10.GL_LIGHT0, GL10.GL_POSITION, pos, 0);
         float[] amb = {0.36f, 0.4f, 0.45f, 1f};
@@ -252,33 +221,15 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
         gl.glMatrixMode(GL10.GL_PROJECTION);
         gl.glLoadIdentity();
         float aspect = (float) viewportW / (float) viewportH;
-        float fovyDeg = PERSP_FOVY_DEG;
-        float yEye;
-        if (dollyZoomEnabled) {
-            double t = System.currentTimeMillis() * 0.001;
-            double w = 2.0 * Math.PI * t / DOLLY_PERIOD_SEC + dollyPhaseOffsetRad;
-            yEye = DOLLY_EYEY_CENTER + DOLLY_EYEY_AMP * (float) Math.sin(w);
-            if (yEye < 0.6f) {
-                yEye = 0.6f;
-            }
-        } else {
-            yEye = yCamFree;
-        }
-        GLU.gluPerspective(gl, fovyDeg, aspect, 0.1f, 100.0f);
+        GLU.gluPerspective(gl, PERSP_FOVY_DEG, aspect, 0.1f, 100.0f);
         gl.glMatrixMode(GL10.GL_MODELVIEW);
         gl.glLoadIdentity();
-        // Felülnézet: a szem +Y felett, a város az XZ síkon; a képernyő „felfelé” a +Z
-        GLU.gluLookAt(gl, 0, yEye, 0, 0, 0, 0, 0, 0, 1f);
-        angleY += 0.28f;
-        if (angleY >= 360f) {
-            angleY -= 360f;
-        }
-        gl.glEnable(GL10.GL_LIGHTING);
-        gl.glEnable(GL10.GL_LIGHT0);
-        gl.glPushMatrix();
-        gl.glRotatef(angleY, 0, 1, 0);
+        GLU.gluLookAt(gl, 0, EYE_Y, 0, 0, 0, 0, 0, 0, 1f);
+        // Nincs glRotate: statikus földbeállítás, ne mozduljon a város
         int vertsGround = triCountGround * 3;
         int vertsPanel = triCountTotal * 3 - vertsGround;
+        gl.glEnable(GL10.GL_LIGHTING);
+        gl.glEnable(GL10.GL_LIGHT0);
         gl.glMaterialfv(
                 GL10.GL_FRONT_AND_BACK,
                 GL10.GL_AMBIENT,
@@ -307,6 +258,5 @@ public class AssocRenderer implements GLSurfaceView.Renderer {
         gl.glDrawArrays(GL10.GL_TRIANGLES, vertsGround, vertsPanel);
         gl.glDisableClientState(GL10.GL_NORMAL_ARRAY);
         gl.glDisableClientState(GL10.GL_VERTEX_ARRAY);
-        gl.glPopMatrix();
     }
 }

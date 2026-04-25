@@ -11,7 +11,5 @@
     <string name="ai_memory_hint">Memória: a szövegek a telefonon vannak. Modellváltáskor a teljes eddigi beszélgetést elküldjük az új szervernek — nem törli automatikusan. Új beszédhez: ürítés.</string>
     <string name="ai_clear">Ürítés</string>
     <string name="ai_asus_unconfigured">Nincs ASUS (LAN) beállítva — csak a felhő. Példa: ASSOC_ASUS_OLLAMA_BASE=http://GÉP:11434 (Ollama /api/chat) vagy ASSOC_ASUS_OLLAMA_NATIVE=false + OpenAI-URL</string>
-    <string name="ai_gesture">Egy: nudge · dupla: AI (full + Galaxy csomag) · hosszú: friss · Vol+: dolly</string>
-    <string name="dolly_on">Dolly: be (kamera oda–vissza, fix 50° FOV — látszó méretezés)</string>
-    <string name="dolly_off">Dolly: ki (fix 3D-táv, régi mód)</string>
+    <string name="ai_gesture">Dupla: AI · hosszú: frissítés (3D statikus, nem mozog)</string>
 </resources>
