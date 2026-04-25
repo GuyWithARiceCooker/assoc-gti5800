@@ -24,9 +24,10 @@ rsync -avz --delete \
   --exclude 'local.properties' \
   "$SRC/" "${REMOTE}:${DEST}"
 
-echo "▶ build az ASUSon (JDK path + local.properties, ha kell; SKIP_ADB=${SKIP_ADB:-<üres>})"
+echo "▶ build az ASUSon (SKIP_ADB, PREFER_WIRELESS továbbítva)"
 # SKIP_ADB=1  (Mac) → távoli build után nincs adb
-ssh -o BatchMode=yes "$REMOTE" "env SKIP_ADB='${SKIP_ADB:-}' bash -s" <<'REMOTE'
+# PREFER_WIRELESS=1  (Mac) → tools/adb-install-and-start.sh a Wi-Fi ADB sorból válasszon (kábel helyett)
+ssh -o BatchMode=yes "$REMOTE" "export SKIP_ADB='${SKIP_ADB:-}'; export PREFER_WIRELESS='${PREFER_WIRELESS:-}'; bash -s" <<'REMOTE'
 set -euo pipefail
 export PATH="${HOME}/.local/java/current/bin:${PATH}"
 cd "$HOME/assoc-gti5800" || { echo "Nincs ~/assoc-gti5800" >&2; exit 1; }
