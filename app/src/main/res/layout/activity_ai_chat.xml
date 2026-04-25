@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="4dp"
+        android:text="@string/ai_title"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <ScrollView
+        android:id="@+id/ai_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:background="#1a1a24">
+
+        <TextView
+            android:id="@+id/ai_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="6dp"
+            android:textColor="#e8e0d0"
+            android:textSize="12sp" />
+    </ScrollView>
+
+    <EditText
+        android:id="@+id/ai_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/ai_input_hint"
+        android:inputType="textCapSentences|textMultiLine"
+        android:minLines="2" />
+
+    <Button
+        android:id="@+id/ai_send"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_send" />
+</LinearLayout>

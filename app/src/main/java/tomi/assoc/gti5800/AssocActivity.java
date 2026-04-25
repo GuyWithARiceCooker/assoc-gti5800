@@ -51,7 +51,7 @@ public class AssocActivity extends Activity {
         // Érintés: a GLSurfaceView alapból gyakran nem viszi a touchot — „nem reagál”
         glView.setClickable(true);
         glView.setFocusable(true);
-        // egy kopp: nudge, hosszú: távoli frissítés ellenőrzés
+        // egy kopp: nudge · dupla: AI csevegés (full) · hosszú: távoli frissítés
         gesture = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDown(MotionEvent e) {
@@ -69,6 +69,32 @@ public class AssocActivity extends Activity {
                 RemoteUpdateManager.startManualCheck(AssocActivity.this);
             }
         });
+        gesture.setOnDoubleTapListener(
+                new GestureDetector.OnDoubleTapListener() {
+                    @Override
+                    public boolean onDoubleTap(MotionEvent e) {
+                        if (BuildConfig.AI_ENABLED) {
+                            startActivity(new Intent(AssocActivity.this, AiChatActivity.class));
+                        } else {
+                            Toast.makeText(
+                                            AssocActivity.this,
+                                            "AI csevegés csak a full (min API 14) APK-ban. Galaxy: 2.2 TLS límitek.",
+                                            Toast.LENGTH_LONG)
+                                    .show();
+                        }
+                        return true;
+                    }
+
+                    @Override
+                    public boolean onDoubleTapEvent(MotionEvent e) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onSingleTapConfirmed(MotionEvent e) {
+                        return false;
+                    }
+                });
         glView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -84,7 +110,12 @@ public class AssocActivity extends Activity {
                 @Override
                 public void run() {
                     try {
-                        Toast.makeText(AssocActivity.this, "assoc v" + pi.versionName + " (" + pi.versionCode + ")", Toast.LENGTH_SHORT).show();
+                        String tip = getString(R.string.ai_gesture);
+                        Toast.makeText(
+                                        AssocActivity.this,
+                                        "assoc v" + pi.versionName + " (" + pi.versionCode + ")\n" + tip,
+                                        Toast.LENGTH_LONG)
+                                .show();
                     } catch (Throwable ignored) {
                     }
                 }

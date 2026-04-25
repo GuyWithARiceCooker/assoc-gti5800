@@ -1,8 +1,22 @@
 // modul: assoc gti5800 app — OpenGL ES 1.0
 // Build: `./gradlew :app:assembleFullDebug` (OnePlus, min 14, önfrissítés) vagy `assembleGalaxy3Debug` (GT-I5800, min 7, sideload).
+// AI kulcs (ne commitolj): local.properties → ASSOC_AI_API_KEY=sk-…
 plugins {
     id 'com.android.application'
 }
+
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+def escForBuildConfig = { String s ->
+    if (s == null) {
+        return ''
+    }
+    s.replace('\\', '\\\\').replace('"', '\\"')
+}
+def aiKeyEscaped = escForBuildConfig(localProps.getProperty('ASSOC_AI_API_KEY', ''))
 
 android {
     namespace 'tomi.assoc.gti5800'
@@ -13,23 +27,30 @@ android {
         // Alap: `full` flavor — távoli frissítés, min API 14. Külön: `galaxy3` (GT-I5800) min 7, nincs AndroidX/önfrissítés.
         minSdk 14
         targetSdk 34
-        versionCode 9
-        versionName "1.7-ota-galaxy"
+        versionCode 10
+        versionName "1.8-ai-chat"
         // Távoli frissítés (csak `full` használja; `galaxy3` stub)
         buildConfigField "String", "UPDATE_JSON_URL",
             "\"https://raw.githubusercontent.com/GuyWithARiceCooker/assoc-gti5800/main/docs/update.json\""
+        // AI: `full` felülírja AI_ENABLED=true; kulcs local.properties — üres = gomb tiltva + instrukció
+        buildConfigField "boolean", "AI_ENABLED", "false"
+        buildConfigField "String", "AI_API_KEY", "\"${aiKeyEscaped}\""
+        buildConfigField "String", "AI_CHAT_COMPLETIONS_URL",
+            "\"https://api.openai.com/v1/chat/completions\""
+        buildConfigField "String", "AI_MODEL", "\"gpt-4o-mini\""
     }
     flavorDimensions += "device"
     productFlavors {
         full {
             dimension "device"
+            buildConfigField "boolean", "AI_ENABLED", "true"
         }
         galaxy3 {
             dimension "device"
             // GT-I5800: 2.1 Eclair / 2.2 Froyo — nincs maxSdk, hogy más régi (pl. 2.3) is kaphassa ugyanezt, ha kell
             minSdk 7
             targetSdk 10
-            versionName "1.7-ota-galaxy3"
+            versionName "1.8-ai-galaxy3"
         }
     }
     buildTypes {

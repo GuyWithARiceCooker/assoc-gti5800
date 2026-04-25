@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">assoc 3D</string>
+    <string name="ai_title">AI csevegés (OpenAI-kompatibilis API)</string>
+    <string name="ai_input_hint">Üzenet…</string>
+    <string name="ai_send">Küldés</string>
+    <string name="ai_no_key">Állítsd be: local.properties → ASSOC_AI_API_KEY=… (ne commitolj)</string>
+    <string name="ai_sending">Küldés…</string>
+    <string name="ai_gesture">Dupla kopp: AI · hosszú: frissítés · egy: kis mozgatás</string>
 </resources>
