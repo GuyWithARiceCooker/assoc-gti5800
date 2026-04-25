@@ -27,12 +27,12 @@ android {
         // Alap: `full` flavor — távoli frissítés, min API 14. Külön: `galaxy3` (GT-I5800) min 7, nincs AndroidX/önfrissítés.
         minSdk 14
         targetSdk 34
-        versionCode 13
-        versionName "1.10-paneltop"
+        versionCode 14
+        versionName "1.11-galaxy-ai"
         // Távoli frissítés (csak `full` használja; `galaxy3` stub)
         buildConfigField "String", "UPDATE_JSON_URL",
             "\"https://raw.githubusercontent.com/GuyWithARiceCooker/assoc-gti5800/main/docs/update.json\""
-        // AI: `full` felülírja AI_ENABLED=true; kulcs local.properties — üres = gomb tiltva + instrukció
+        // AI: `full` és `galaxy3` felülírja AI_ENABLED=true; kulcs local.properties — üres = instrukció
         buildConfigField "boolean", "AI_ENABLED", "false"
         buildConfigField "String", "AI_API_KEY", "\"${aiKeyEscaped}\""
         buildConfigField "String", "AI_CHAT_COMPLETIONS_URL",
@@ -50,7 +50,9 @@ android {
             // GT-I5800: 2.1 Eclair / 2.2 Froyo — nincs maxSdk, hogy más régi (pl. 2.3) is kaphassa ugyanezt, ha kell
             minSdk 7
             targetSdk 10
-            versionName "1.10-panel-g3"
+            // Ugyanaz az AI csevegés, mint a full (ASSOC kulcs; nagyon régi OS-en a HTTPS/TLS még elhasalhat)
+            buildConfigField "boolean", "AI_ENABLED", "true"
+            versionName "1.11-panel-g3-ai"
         }
     }
     buildTypes {

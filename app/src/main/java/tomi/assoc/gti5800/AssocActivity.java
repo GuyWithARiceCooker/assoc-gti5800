@@ -52,7 +52,7 @@ public class AssocActivity extends Activity {
         // Érintés: a GLSurfaceView alapból gyakran nem viszi a touchot — „nem reagál”
         glView.setClickable(true);
         glView.setFocusable(true);
-        // egy kopp: nudge · dupla: AI csevegés (full) · hosszú: távoli frissítés
+        // egy kopp: nudge · dupla: AI csevegés (full + galaxy3, ha van kulcs) · hosszú: távoli frissítés
         gesture = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDown(MotionEvent e) {
@@ -79,7 +79,7 @@ public class AssocActivity extends Activity {
                         } else {
                             Toast.makeText(
                                             AssocActivity.this,
-                                            "AI csevegés csak a full (min API 14) APK-ban. Galaxy: 2.2 TLS límitek.",
+                                            "AI csevegés nincs engedélyezve ebben a buildekben.",
                                             Toast.LENGTH_LONG)
                                     .show();
                         }

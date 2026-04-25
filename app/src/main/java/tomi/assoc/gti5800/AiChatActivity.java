@@ -1,6 +1,7 @@
 package tomi.assoc.gti5800;
 
 import android.app.Activity;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -28,8 +29,10 @@ import java.util.List;
 /**
  * OpenAI-stílusú <strong>chat/completions</strong> kliens: {@link BuildConfig#AI_CHAT_COMPLETIONS_URL},
  * {@link BuildConfig#AI_MODEL}, Bearer {@link BuildConfig#AI_API_KEY} (a projekt
- * <code>local.properties</code>: <code>ASSOC_AI_API_KEY</code> – ne legyen verziókezelve). Csak
- * <code>full</code> flavor: {@link BuildConfig#AI_ENABLED}; egyébként a tevékenység azonnal leáll.
+ * <code>local.properties</code>: <code>ASSOC_AI_API_KEY</code> – ne legyen verziókezelve). Ha
+ * {@link BuildConfig#AI_ENABLED} hamis, a képernyő azonnal leáll. <code>full</code> és
+ * <code>galaxy3</code> (Samsung I5800 / régi) egyaránt tudják, ha a buildekben be van kapcsolva; régi
+ * Androidon modern HTTPS miatt a kapcsolat elhasalhat.
  */
 public class AiChatActivity extends Activity {
     private static final int READ_TIMEOUT_MS = 120_000;
@@ -56,7 +59,8 @@ public class AiChatActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (!BuildConfig.AI_ENABLED) {
-            Toast.makeText(this, "AI csak a full (API 14+) buildekben engedélyezve.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "AI csevegés nincs engedélyezve ebben a buildekben.", Toast.LENGTH_LONG)
+                    .show();
             finish();
             return;
         }
@@ -133,7 +137,12 @@ public class AiChatActivity extends Activity {
             root.put("messages", msgs);
             root.put("temperature", 0.7);
             byte[] body = root.toString().getBytes(Charset.forName("UTF-8"));
-            c.setFixedLengthStreamingMode(body.length);
+            // KITKAT+ (19): különben NoSuchMethodError galaxy3 (min 7) buildeken; régi: Content-Length
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                c.setFixedLengthStreamingMode(body.length);
+            } else {
+                c.setRequestProperty("Content-Length", Integer.toString(body.length));
+            }
             OutputStream out = c.getOutputStream();
             out.write(body);
             out.close();
