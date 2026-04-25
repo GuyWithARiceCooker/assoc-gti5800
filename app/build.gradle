@@ -13,8 +13,8 @@ android {
         // Alap: `full` flavor — távoli frissítés, min API 14. Külön: `galaxy3` (GT-I5800) min 7, nincs AndroidX/önfrissítés.
         minSdk 14
         targetSdk 34
-        versionCode 8
-        versionName "1.6-3dtext"
+        versionCode 9
+        versionName "1.7-ota-galaxy"
         // Távoli frissítés (csak `full` használja; `galaxy3` stub)
         buildConfigField "String", "UPDATE_JSON_URL",
             "\"https://raw.githubusercontent.com/GuyWithARiceCooker/assoc-gti5800/main/docs/update.json\""
@@ -29,7 +29,7 @@ android {
             // GT-I5800: 2.1 Eclair / 2.2 Froyo — nincs maxSdk, hogy más régi (pl. 2.3) is kaphassa ugyanezt, ha kell
             minSdk 7
             targetSdk 10
-            versionName "1.6-3dtext-galaxy"
+            versionName "1.7-ota-galaxy3"
         }
     }
     buildTypes {

@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <!-- Self-update hálózat + FileProvider: AndroidX nélküli I5800-buildben nincs -->
-    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <!-- FileProvider: AndroidX nélkül; önfrissítés: HttpURLConnection + file://, INTERNET a main-ből (nem távolítjuk) -->
     <application>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="tomi.assoc.gti5800.fileprovider"
             tools:node="remove" />
     </application>
-    <!-- API 30+ lekérdezés: Eclairen nincs ilyen elem — merge conflict elkerülése, kiütjük a main-ből -->
+    <!-- API 30+ lekérdezés: Eclairen nincs ilyen — merge-ből kivezetve -->
     <queries tools:node="remove">
         <intent>
             <action android:name="android.intent.action.VIEW" />
