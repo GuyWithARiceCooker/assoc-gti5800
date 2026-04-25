@@ -97,45 +97,62 @@ public class AiChatActivity extends Activity {
         radioAsus = findViewById(R.id.ai_backend_asus);
 
         final boolean hasAsus = hasAsusChatUrl();
-        if (!hasAsus) {
-            backendGroup.setVisibility(View.GONE);
-        } else {
-            final SharedPreferences p = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-            final boolean cloudKeyOk =
-                    BuildConfig.AI_API_KEY != null && !BuildConfig.AI_API_KEY.isEmpty();
-            final boolean asusWanted =
-                    p.contains(PREF_KEY_BACKEND)
-                            ? p.getBoolean(PREF_KEY_BACKEND, false)
-                            : !cloudKeyOk;
-            RadioGroup.OnCheckedChangeListener listener =
-                    new RadioGroup.OnCheckedChangeListener() {
-                        @Override
-                        public void onCheckedChanged(RadioGroup group, int checkedId) {
-                            boolean asus = checkedId == R.id.ai_backend_asus;
-                            p.edit().putBoolean(PREF_KEY_BACKEND, asus).apply();
-                            appendLog(
-                                    (asus ? "→ backend: ASUS / LAN, modell: " : "→ backend: felhő, modell: ")
-                                            + (asus ? BuildConfig.AI_ASUS_MODEL : BuildConfig.AI_MODEL) + ".\n"
-                                            + "(Az üzenetek megmaradnak; a következő küldéskor ezt a szervert hívjuk.)\n");
-                        }
-                    };
-            backendGroup.setOnCheckedChangeListener(null);
-            if (asusWanted) {
-                radioAsus.setChecked(true);
-            } else {
-                radioCloud.setChecked(true);
+        if (BuildConfig.GALAXY3_LEGACY) {
+            if (clearBtn != null) {
+                clearBtn.setVisibility(View.GONE);
             }
-            backendGroup.setOnCheckedChangeListener(listener);
+            if (backendGroup != null) {
+                backendGroup.setVisibility(View.GONE);
+            }
+        } else {
+            if (backendGroup != null) {
+                if (!hasAsus) {
+                    backendGroup.setVisibility(View.GONE);
+                } else {
+                    if (radioCloud != null && radioAsus != null) {
+                        final SharedPreferences p = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+                        final boolean cloudKeyOk =
+                                BuildConfig.AI_API_KEY != null && !BuildConfig.AI_API_KEY.isEmpty();
+                        final boolean asusWanted =
+                                p.contains(PREF_KEY_BACKEND)
+                                        ? p.getBoolean(PREF_KEY_BACKEND, false)
+                                        : !cloudKeyOk;
+                        RadioGroup.OnCheckedChangeListener listener =
+                                new RadioGroup.OnCheckedChangeListener() {
+                                    @Override
+                                    public void onCheckedChanged(RadioGroup group, int checkedId) {
+                                        boolean asus1 = checkedId == R.id.ai_backend_asus;
+                                        p.edit().putBoolean(PREF_KEY_BACKEND, asus1).apply();
+                                        appendLog(
+                                                (asus1 ? "→ backend: ASUS / LAN, modell: " : "→ backend: felhő, modell: ")
+                                                        + (asus1 ? BuildConfig.AI_ASUS_MODEL : BuildConfig.AI_MODEL) + ".\n"
+                                                        + "(Az üzenetek megmaradnak; a következő küldéskor ezt a szervert hívjuk.)\n");
+                                    }
+                                };
+                        backendGroup.setOnCheckedChangeListener(null);
+                        if (asusWanted) {
+                            radioAsus.setChecked(true);
+                        } else {
+                            radioCloud.setChecked(true);
+                        }
+                        backendGroup.setOnCheckedChangeListener(listener);
+                    }
+                }
+            }
         }
 
         final Runnable firstLogs =
                 new Runnable() {
                     @Override
                     public void run() {
-                        if (!hasAsus) {
-                            appendLog(getString(R.string.ai_asus_unconfigured) + "\n\n");
+                        if (BuildConfig.GALAXY3_LEGACY) {
+                            appendLog("Rendszer: " + headerLineForLog(hasAsus) + "\n");
+                        } else {
+                            if (!hasAsus) {
+                                appendLog(getString(R.string.ai_asus_unconfigured) + "\n\n");
+                            }
+                            appendLog("Rendszer: " + headerLineForLog(hasAsus) + "\n");
                         }
-                        appendLog("Rendszer: " + headerLineForLog(hasAsus) + "\n");
                     }
                 };
         if (BuildConfig.GALAXY3_LEGACY) {
@@ -144,14 +161,16 @@ public class AiChatActivity extends Activity {
         } else {
             firstLogs.run();
         }
-        clearBtn.setOnClickListener(
-                new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        history.clear();
-                        appendLog("\n— " + getString(R.string.ai_clear) + " —\n");
-                    }
-                });
+        if (clearBtn != null) {
+            clearBtn.setOnClickListener(
+                    new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            history.clear();
+                            appendLog("\n— " + getString(R.string.ai_clear) + " —\n");
+                        }
+                    });
+        }
         sendBtn.setOnClickListener(
                 new View.OnClickListener() {
                     @Override
@@ -171,35 +190,57 @@ public class AiChatActivity extends Activity {
     }
 
     private boolean isAsusBackend() {
+        if (BuildConfig.GALAXY3_LEGACY) {
+            return hasAsusChatUrl();
+        }
         if (!hasAsusChatUrl()) {
             return false;
         }
-        return radioAsus.isChecked();
+        return radioAsus != null && radioAsus.isChecked();
     }
 
     private String headerLineForLog(boolean hasAsus) {
-        if (BuildConfig.AI_API_KEY == null || BuildConfig.AI_API_KEY.isEmpty()) {
-            return getString(R.string.ai_no_key) + (hasAsus
-                    ? " · ASUS: " + BuildConfig.AI_ASUS_MODEL
-                    : "");
+        final boolean hasCloudKey =
+                BuildConfig.AI_API_KEY != null && !BuildConfig.AI_API_KEY.isEmpty();
+        if (BuildConfig.GALAXY3_LEGACY) {
+            if (hasAsus) {
+                return "Ollama / LAN: " + BuildConfig.AI_ASUS_MODEL
+                        + " (felhő ASSOC kulcs nem kell)"
+                        + (hasCloudKey ? " — felhőkulcs a buildben." : "");
+            }
+            return getString(R.string.ai_asus_unconfigured);
         }
-        if (!hasAsus) {
-            return "Kulcs ok · felhő: " + BuildConfig.AI_MODEL;
+        if (hasCloudKey) {
+            if (!hasAsus) {
+                return "Kulcs ok · felhő: " + BuildConfig.AI_MODEL;
+            }
+            return "Kulcs ok · felhő: " + BuildConfig.AI_MODEL + " | ASUS: " + BuildConfig.AI_ASUS_MODEL;
         }
-        return "Kulcs ok · felhő: " + BuildConfig.AI_MODEL + " | ASUS: " + BuildConfig.AI_ASUS_MODEL;
+        if (hasAsus) {
+            return "Felhőhöz: ASSOC_AI_API_KEY (local.properties) — vagy válaszd az „ASUS / LAN”-t ("
+                    + BuildConfig.AI_ASUS_MODEL + ", kulcs nem kell a LAN-hoz).";
+        }
+        return getString(R.string.ai_no_key);
     }
 
     private void send() {
-        boolean asus = isAsusBackend();
-        if (!asus) {
-            if (BuildConfig.AI_API_KEY == null || BuildConfig.AI_API_KEY.isEmpty()) {
-                Toast.makeText(this, R.string.ai_no_key, Toast.LENGTH_LONG).show();
-                return;
-            }
-        } else {
+        if (BuildConfig.GALAXY3_LEGACY) {
             if (!hasAsusChatUrl()) {
                 Toast.makeText(this, R.string.ai_asus_unconfigured, Toast.LENGTH_LONG).show();
                 return;
+            }
+        } else {
+            boolean asus1 = isAsusBackend();
+            if (!asus1) {
+                if (BuildConfig.AI_API_KEY == null || BuildConfig.AI_API_KEY.isEmpty()) {
+                    Toast.makeText(this, R.string.ai_no_key, Toast.LENGTH_LONG).show();
+                    return;
+                }
+            } else {
+                if (!hasAsusChatUrl()) {
+                    Toast.makeText(this, R.string.ai_asus_unconfigured, Toast.LENGTH_LONG).show();
+                    return;
+                }
             }
         }
         String text = input.getText() != null ? input.getText().toString().trim() : "";

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- I5800 / Froyo: rövid layout — kevesebb nézet = gyorsabb inflate; a memória-hint a strings-ben marad, kimegy a képernyőről, ha túl sok. -->
+<!-- I5800: nincs rádió, nincs ürítés — ne kérjünk ASSOC_AI_API_KEY (felhő), ne legyen túl sok view (inflate / NPE). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -14,44 +14,13 @@
         android:textSize="15sp"
         android:textStyle="bold" />
 
-    <RadioGroup
-        android:id="@+id/ai_backend_group"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingBottom="2dp">
-
-        <RadioButton
-            android:id="@+id/ai_backend_cloud"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="@string/ai_backend_cloud"
-            android:textSize="12sp" />
-
-        <RadioButton
-            android:id="@+id/ai_backend_asus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/ai_backend_asus"
-            android:textSize="12sp" />
-    </RadioGroup>
-
-    <Button
-        android:id="@+id/ai_clear"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="32dp"
-        android:text="@string/ai_clear"
-        android:textSize="11sp" />
-
     <ScrollView
         android:id="@+id/ai_scroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fillViewport="true"
         android:background="#1a1a24"
+        android:fillViewport="true"
         android:scrollbars="vertical">
 
         <TextView
@@ -77,4 +46,27 @@
         android:layout_height="wrap_content"
         android:minHeight="40dp"
         android:text="@string/ai_send" />
+
+    <!-- R.id: a ugyanaz a Java mindkét flaforn — az üres/eltűnt id-k nélkül a galaxy3 R nem tudna fordulni. -->
+    <Button
+        android:id="@+id/ai_clear"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <RadioGroup
+        android:id="@+id/ai_backend_group"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone">
+
+        <RadioButton
+            android:id="@+id/ai_backend_cloud"
+            android:layout_width="0dp"
+            android:layout_height="0dp" />
+        <RadioButton
+            android:id="@+id/ai_backend_asus"
+            android:layout_width="0dp"
+            android:layout_height="0dp" />
+    </RadioGroup>
 </LinearLayout>

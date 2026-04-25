@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A full buildnél a cím a felhőt is hirdeti; a Galaxy csak LAN, ne kérjen ASSOC kulcsot ugyanúgy. -->
+    <string name="ai_title">AI (LAN / Ollama)</string>
+</resources>

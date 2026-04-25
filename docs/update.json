@@ -1,6 +1,6 @@
 {
-  "latestVersionCode": 19,
-  "latestVersionName": "1.13-static-3d",
+  "latestVersionCode": 20,
+  "latestVersionName": "1.13.1",
   "apkUrl": "",
   "galaxy3ApkUrl": "",
   "_comment": "full (OnePlus, min 14): apkUrl = Release HTTPS APK. I5800 (galaxy3): galaxy3ApkUrl = galaxy3-*.apk, ugyanaz a latestVersionCode; AI dupla kopp ugyanúgy, mint full (ASSOC kulcs). Régi OS: HTTPS/TLS (OpenAI, GitHub) gyakran nem megy — proxy vagy kézi APK."

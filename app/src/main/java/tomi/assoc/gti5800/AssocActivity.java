@@ -155,13 +155,15 @@ public class AssocActivity extends Activity {
             // AI-ból (vagy más onPause) visszatéréskor: folyamatos 3D ciklus
             glView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
         }
-        // Távoli update.json: ha később nagyobb latestVersionCode, felugró
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                RemoteUpdateManager.maybeAutoCheck(AssocActivity.this);
-            }
-        }, 5000L);
+        // I5800: a háttérben JSON+HTTP gyakran instabil / felesleges; a frissítés: hosszú érintés
+        if (!BuildConfig.GALAXY3_LEGACY) {
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    RemoteUpdateManager.maybeAutoCheck(AssocActivity.this);
+                }
+            }, 5000L);
+        }
     }
 
     @Override

@@ -38,8 +38,8 @@ android {
         // Alap: `full` flavor — távoli frissítés, min API 14. Külön: `galaxy3` (GT-I5800) min 7, nincs AndroidX/önfrissítés.
         minSdk 14
         targetSdk 34
-        versionCode 19
-        versionName "1.13-static-3d"
+        versionCode 20
+        versionName "1.13.1"
         // galaxy3: AiChatActivity könnyebb régi telón (részben layout override + GALAXY3_LEGACY)
         buildConfigField "boolean", "GALAXY3_LEGACY", "false"
         // Távoli frissítés (csak `full` használja; `galaxy3` stub)
@@ -72,7 +72,7 @@ android {
             // Ugyanaz az AI csevegés, mint a full (ASSOC kulcs; nagyon régi OS-en a HTTPS/TLS még elhasalhat)
             buildConfigField "boolean", "AI_ENABLED", "true"
             buildConfigField "boolean", "GALAXY3_LEGACY", "true"
-            versionName "1.13-g3-static"
+            versionName "1.13.1-g3-lan"
         }
     }
     buildTypes {
